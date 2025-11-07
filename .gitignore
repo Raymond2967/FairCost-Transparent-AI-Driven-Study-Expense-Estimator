@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+.out/
+.next/
+.vercel/
+.eslintcache
+coverage/
+*.log
+.env
+.env.*
+.DS_Store
+Thumbs.db
