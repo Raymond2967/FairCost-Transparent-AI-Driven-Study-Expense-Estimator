@@ -1,4 +1,5 @@
 import { openRouterClient } from '../openrouter';
+import { safeLLMClient } from '../safe-llm-client';
 import { UserInput, OtherCosts } from '@/types';
 import { VISA_FEES, US_UNIVERSITIES, AU_UNIVERSITIES } from '../constants';
 
@@ -47,23 +48,20 @@ export class OtherCostsAgent {
       // 搜索申请费信息
       const searchQuery = `${university} application fee ${level} ${new Date().getFullYear()} international students`;
 
-      const searchResults = await openRouterClient.searchWeb(searchQuery);
+      const searchResults = await safeLLMClient.safeSearch(searchQuery);
 
-      const extractionSchema = `{
-        "application_fee": number,
-        "source_url": "string",
-        "confidence": number
-      }`;
+      const fallbackData = {
+        application_fee: country === 'US' ? 85 : 100,
+        source_url: universityData.website,
+        confidence: 0.5
+      };
 
-      const extractedData = await openRouterClient.extractStructuredData(
-        searchResults,
-        extractionSchema
-      );
+      const extractedData = await safeLLMClient.extractApplicationFee(searchResults, fallbackData);
 
       if (extractedData && extractedData.application_fee && extractedData.confidence > 0.6) {
         return {
           amount: extractedData.application_fee,
-          source: extractedData.source_url || universityData.website
+          source: this.validateUrl(extractedData.source_url) || universityData.website
         };
       }
 
@@ -126,24 +124,21 @@ export class OtherCostsAgent {
       // 搜索健康保险要求
       const searchQuery = `${university} health insurance requirement cost international students ${country} ${new Date().getFullYear()}`;
 
-      const searchResults = await openRouterClient.searchWeb(searchQuery);
+      const searchResults = await safeLLMClient.safeSearch(searchQuery);
 
-      const extractionSchema = `{
-        "insurance_cost_annual": number,
-        "is_mandatory": boolean,
-        "source_url": "string",
-        "confidence": number
-      }`;
+      const fallbackData = {
+        insurance_cost_annual: country === 'US' ? 2500 : 600,
+        is_mandatory: true,
+        source_url: `${university}健康保险要求`,
+        confidence: 0.5
+      };
 
-      const extractedData = await openRouterClient.extractStructuredData(
-        searchResults,
-        extractionSchema
-      );
+      const extractedData = await safeLLMClient.extractHealthInsurance(searchResults, fallbackData);
 
       if (extractedData && extractedData.insurance_cost_annual && extractedData.is_mandatory) {
         return {
           amount: extractedData.insurance_cost_annual,
-          source: extractedData.source_url || `${university}健康保险要求`
+          source: this.validateUrl(extractedData.source_url) || `${university}健康保险要求`
         };
       }
 
@@ -215,6 +210,32 @@ export class OtherCostsAgent {
     } catch (error) {
       console.error('Additional costs query failed:', error);
       return {};
+    }
+  }
+
+  private validateUrl(url: string): string | null {
+    if (!url || typeof url !== 'string') {
+      return null;
+    }
+
+    try {
+      // 检查是否是有效的URL
+      new URL(url);
+
+      // 检查是否包含中文字符
+      const chineseRegex = /[\u4e00-\u9fff]/;
+      if (chineseRegex.test(url)) {
+        return null;
+      }
+
+      // 检查是否是合理的域名
+      if (url.includes('http') && url.includes('.')) {
+        return url;
+      }
+
+      return null;
+    } catch (error) {
+      return null;
     }
   }
 }

@@ -1,4 +1,5 @@
 import { openRouterClient } from '../openrouter';
+import { safeLLMClient } from '../safe-llm-client';
 import { UserInput, TuitionData } from '@/types';
 import { US_UNIVERSITIES, AU_UNIVERSITIES } from '../constants';
 
@@ -44,24 +45,20 @@ export class TuitionAgent {
       // 构建搜索查询
       const searchQuery = `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`;
 
-      // 使用LLM进行网络搜索和数据提取
-      const searchResults = await openRouterClient.searchWeb(searchQuery);
+      // 使用安全的LLM客户端进行搜索和数据提取
+      const searchResults = await safeLLMClient.safeSearch(searchQuery);
 
-      // 定义数据提取模式
-      const extractionSchema = `{
-        "tuition_amount": number,
-        "currency": "USD" | "AUD",
-        "period": "annual" | "semester",
-        "source_url": "string",
-        "is_estimate": boolean,
-        "last_updated": "string",
-        "confidence": number
-      }`;
+      const fallbackData = {
+        tuition_amount: country === 'US' ? 50000 : 45000,
+        currency: country === 'US' ? 'USD' : 'AUD',
+        period: 'annual',
+        source_url: universityData.website,
+        is_estimate: true,
+        last_updated: new Date().toISOString(),
+        confidence: 0.5
+      };
 
-      const extractedData = await openRouterClient.extractStructuredData(
-        searchResults,
-        extractionSchema
-      );
+      const extractedData = await safeLLMClient.extractTuitionData(searchResults, fallbackData);
 
       if (extractedData && extractedData.tuition_amount && extractedData.confidence > 0.7) {
         return {
@@ -120,11 +117,11 @@ export class TuitionAgent {
       });
 
       const extractionSchema = `{
-        "estimated_tuition": number,
-        "currency": "USD" | "AUD",
+        "estimated_tuition": 45000,
+        "currency": "USD",
         "period": "annual",
-        "reasoning": "string",
-        "confidence_level": "high" | "medium" | "low"
+        "reasoning": "Based on similar programs at comparable institutions",
+        "confidence_level": "medium"
       }`;
 
       const estimatedData = await openRouterClient.extractStructuredData(

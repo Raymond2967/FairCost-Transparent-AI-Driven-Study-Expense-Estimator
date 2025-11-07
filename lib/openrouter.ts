@@ -80,7 +80,18 @@ export class OpenRouterClient {
       const messages = [
         {
           role: 'system' as const,
-          content: `You are a data extraction specialist. Extract structured data from the provided content according to the specified schema. Return ONLY valid JSON without any additional text or formatting.`
+          content: `You are a data extraction specialist. Extract structured data from the provided content according to the specified schema.
+
+IMPORTANT: Return ONLY the JSON object without any markdown formatting, code blocks, or additional text.
+The response should be valid JSON that can be directly parsed.
+
+Example of correct format:
+{"field1": "value1", "field2": 123}
+
+NOT:
+\`\`\`json
+{"field1": "value1"}
+\`\`\``
         },
         {
           role: 'user' as const,
@@ -95,16 +106,65 @@ export class OpenRouterClient {
         max_tokens: 2000
       });
 
+      // Clean response by removing markdown code blocks if present
+      const cleanedResponse = this.cleanJsonResponse(response);
+
       try {
-        return JSON.parse(response);
+        return JSON.parse(cleanedResponse);
       } catch (parseError) {
-        console.error('Failed to parse JSON response:', response);
+        console.error('Failed to parse JSON response:', cleanedResponse);
+        console.error('Original response:', response);
+
+        // Try to extract JSON from markdown-wrapped response as fallback
+        const fallbackJson = this.extractJsonFromMarkdown(response);
+        if (fallbackJson) {
+          try {
+            return JSON.parse(fallbackJson);
+          } catch (fallbackError) {
+            console.error('Fallback parsing also failed');
+          }
+        }
+
         throw new Error('Invalid JSON response from LLM');
       }
     } catch (error) {
       console.error('Data extraction error:', error);
       throw error;
     }
+  }
+
+  private cleanJsonResponse(response: string): string {
+    // Remove common markdown formatting
+    return response
+      .replace(/```json\s*/g, '')
+      .replace(/```\s*/g, '')
+      .replace(/^[\s\n]*/, '')
+      .replace(/[\s\n]*$/, '')
+      .trim();
+  }
+
+  private extractJsonFromMarkdown(response: string): string | null {
+    // Try to extract JSON from markdown code blocks
+    const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+    const match = response.match(jsonRegex);
+
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+
+    // Try without the 'json' label
+    const generalCodeRegex = /```\s*([\s\S]*?)\s*```/;
+    const generalMatch = response.match(generalCodeRegex);
+
+    if (generalMatch && generalMatch[1]) {
+      const content = generalMatch[1].trim();
+      // Check if it looks like JSON
+      if (content.startsWith('{') && content.endsWith('}')) {
+        return content;
+      }
+    }
+
+    return null;
   }
 }
 

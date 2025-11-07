@@ -121,13 +121,24 @@ export class EstimationCoordinator {
         message: '数据查询完成，正在汇总分析...'
       });
 
-      // 检查结果
+      // 检查结果并记录失败情况
       const tuitionData = tuition.status === 'fulfilled' ? tuition.value :
-        this.getEmergencyTuitionData(userInput);
+        (() => {
+          console.warn('Tuition query failed:', tuition.reason);
+          return this.getEmergencyTuitionData(userInput);
+        })();
+
       const livingData = livingCosts.status === 'fulfilled' ? livingCosts.value :
-        this.getEmergencyLivingData(userInput);
+        (() => {
+          console.warn('Living costs query failed:', livingCosts.reason);
+          return this.getEmergencyLivingData(userInput);
+        })();
+
       const otherData = otherCosts.status === 'fulfilled' ? otherCosts.value :
-        this.getEmergencyOtherData(userInput);
+        (() => {
+          console.warn('Other costs query failed:', otherCosts.reason);
+          return this.getEmergencyOtherData(userInput);
+        })();
 
       onProgress?.({
         step: 'report',

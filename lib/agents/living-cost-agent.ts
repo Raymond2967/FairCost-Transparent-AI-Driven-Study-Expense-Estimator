@@ -1,4 +1,5 @@
 import { openRouterClient } from '../openrouter';
+import { safeLLMClient } from '../safe-llm-client';
 import { UserInput, LivingCosts } from '@/types';
 import { CITIES, LIFESTYLE_MULTIPLIERS, ACCOMMODATION_BASE_COSTS } from '../constants';
 import { adjustForLifestyle, calculateRange } from '../utils';
@@ -67,19 +68,19 @@ export class LivingCostAgent {
     try {
       const searchQuery = `${city} ${country} cost of living 2024 rent food transportation monthly expenses`;
 
-      const searchResults = await openRouterClient.searchWeb(searchQuery);
+      const searchResults = await safeLLMClient.safeSearch(searchQuery);
 
-      const extractionSchema = `{
-        "rent_1br": number,
-        "rent_3br": number,
-        "food_monthly": number,
-        "transportation_monthly": number,
-        "utilities_monthly": number,
-        "entertainment_monthly": number,
-        "source": "string"
-      }`;
+      const fallbackData = {
+        rent_1br: country === 'US' ? 1800 : 1400,
+        rent_3br: country === 'US' ? 3000 : 2200,
+        food_monthly: country === 'US' ? 450 : 380,
+        transportation_monthly: country === 'US' ? 150 : 120,
+        utilities_monthly: country === 'US' ? 180 : 150,
+        entertainment_monthly: country === 'US' ? 300 : 250,
+        source: 'Numbeo.com估算'
+      };
 
-      return await openRouterClient.extractStructuredData(searchResults, extractionSchema);
+      return await safeLLMClient.extractLivingCosts(searchResults, fallbackData);
     } catch (error) {
       console.log('Real-time data unavailable, using estimates');
       return null;
