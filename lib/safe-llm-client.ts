@@ -145,6 +145,19 @@ export class SafeLLMClient {
       '健康保险费用数据'
     );
   }
+
+  async extractAccommodationCost(content: string, fallback: any) {
+    return this.safeExtractData(
+      content,
+      `{
+        "accommodation_cost": 1200,
+        "source_url": "https://university.edu",
+        "confidence": 0.8
+      }`,
+      fallback,
+      '住宿费用数据'
+    );
+  }
 }
 
 export const safeLLMClient = new SafeLLMClient();

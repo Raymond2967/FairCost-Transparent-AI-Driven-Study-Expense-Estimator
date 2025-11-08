@@ -9,7 +9,7 @@ export class TuitionAgent {
 
     try {
       // 首先尝试从官方网站获取准确学费信息
-      const officialData = await this.getOfficialTuition(university, program, level, country);
+      const officialData = await this.getOfficialTuition(userInput);
 
       if (officialData) {
         return officialData;
@@ -26,12 +26,9 @@ export class TuitionAgent {
     }
   }
 
-  private async getOfficialTuition(
-    university: string,
-    program: string,
-    level: 'undergraduate' | 'graduate',
-    country: 'US' | 'AU'
-  ): Promise<TuitionData | null> {
+  private async getOfficialTuition(userInput: UserInput): Promise<TuitionData | null> {
+    const { university, program, level, country } = userInput;
+    
     try {
       // 获取大学官网信息
       const universityData = [...US_UNIVERSITIES, ...AU_UNIVERSITIES].find(
@@ -42,33 +39,50 @@ export class TuitionAgent {
         throw new Error('University not found in database');
       }
 
-      // 构建搜索查询
-      const searchQuery = `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`;
+      // 构建多种搜索查询以支持不同计费方式
+      const searchQueries = [
+        // 年度学费搜索
+        `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
+        // 学期学费搜索
+        `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} semester tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
+        // 学分费用搜索
+        `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} cost per credit ${new Date().getFullYear()} international students site:${universityData.website}`,
+        // 通用学费搜索
+        `${university} ${program} tuition ${new Date().getFullYear()} international students site:${universityData.website}`
+      ];
 
-      // 使用gpt-4o-search-preview模型进行搜索
-      const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
+      // 尝试多个搜索查询
+      for (const searchQuery of searchQueries) {
+        try {
+          // 使用gpt-4o-search-preview模型进行搜索
+          const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
 
-      const fallbackData = {
-        tuition_amount: country === 'US' ? 50000 : 45000,
-        currency: country === 'US' ? 'USD' : 'AUD',
-        period: 'annual',
-        source_url: universityData.website,
-        is_estimate: true,
-        confidence: 0.5
-      };
+          const fallbackData = {
+            tuition_amount: country === 'US' ? 50000 : 45000,
+            currency: country === 'US' ? 'USD' : 'AUD',
+            period: 'annual',
+            source_url: universityData.website,
+            is_estimate: true,
+            confidence: 0.5
+          };
 
-      const extractedData = await safeLLMClient.extractTuitionData(searchResults, fallbackData);
+          const extractedData = await safeLLMClient.extractTuitionData(searchResults, fallbackData);
 
-      if (extractedData && extractedData.tuition_amount && extractedData.confidence > 0.7) {
-        return {
-          amount: extractedData.tuition_amount,
-          currency: extractedData.currency,
-          period: extractedData.period,
-          source: extractedData.source_url || universityData.website,
-          isEstimate: extractedData.is_estimate || false,
-          lastUpdated: new Date().toISOString(),
-          confidence: extractedData.confidence
-        };
+          if (extractedData && extractedData.tuition_amount && extractedData.confidence > 0.7) {
+            return {
+              amount: extractedData.tuition_amount,
+              currency: extractedData.currency,
+              period: extractedData.period,
+              source: extractedData.source_url || universityData.website,
+              isEstimate: extractedData.is_estimate || false,
+              lastUpdated: new Date().toISOString(),
+              confidence: extractedData.confidence
+            };
+          }
+        } catch (searchError) {
+          console.log(`Search query failed: ${searchQuery}`, searchError);
+          continue; // 尝试下一个搜索查询
+        }
       }
 
       return null;
@@ -98,8 +112,9 @@ export class TuitionAgent {
       2. The specific program type (STEM, Business, Liberal Arts, etc.)
       3. Current market rates for international students
       4. Regional cost variations
+      5. Different billing structures (annual, semester, credit-based) and provide the most common one
 
-      Provide a realistic estimate based on similar institutions and programs.`;
+      Also provide information about possible variations in billing methods (annual, semester, or credit-based).`;
 
       const estimationResponse = await openRouterClient.chat({
         model: SEARCH_MODEL, // 使用搜索模型进行估算
@@ -160,7 +175,7 @@ export class TuitionAgent {
       return {
         amount: estimatedData?.estimated_tuition || fallbackAmount,
         currency: currency as 'USD' | 'AUD',
-        period: 'annual',
+        period: estimatedData?.period || 'annual',
         source: source,
         isEstimate: true, // 明确标识为估算数据
         lastUpdated: new Date().toISOString(),

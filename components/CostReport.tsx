@@ -163,7 +163,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
     const item = barData[index];
     if (item.source) {
       const url = ensureUrlProtocol(item.source);
-      window.open(url, '_blank');
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -409,6 +409,194 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <span className="text-gray-500 text-sm">无保险数据</span>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 生活费用明细 */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">生活费用明细</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-2">住宿费用</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">月度费用</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.accommodation.amount, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">费用范围</span>
+                <span className="text-gray-700">{formatCurrencyRange(livingCosts.accommodation.range.min, livingCosts.accommodation.range.max, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">住宿类型</span>
+                <span className="text-gray-700">
+                  {livingCosts.accommodation.type === 'dormitory' ? '宿舍' : 
+                   livingCosts.accommodation.type === 'shared' ? '合租' : 
+                   livingCosts.accommodation.type === 'studio' ? '单间' : '公寓'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">数据来源</span>
+                {livingCosts.accommodation.source ? (
+                  <a
+                    href={ensureUrlProtocol(livingCosts.accommodation.source)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    {extractDomain(livingCosts.accommodation.source) || livingCosts.accommodation.source}
+                  </a>
+                ) : (
+                  <span className="text-gray-500 text-sm">无来源信息</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-2">饮食费用</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">月度费用</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.food.amount, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">费用范围</span>
+                <span className="text-gray-700">{formatCurrencyRange(livingCosts.food.range.min, livingCosts.food.range.max, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">数据来源</span>
+                {livingCosts.food.source ? (
+                  <a
+                    href={ensureUrlProtocol(livingCosts.food.source)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    {extractDomain(livingCosts.food.source) || livingCosts.food.source}
+                  </a>
+                ) : (
+                  <span className="text-gray-500 text-sm">无来源信息</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-2">交通费用</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">月度费用</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.transportation.amount, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">费用范围</span>
+                <span className="text-gray-700">{formatCurrencyRange(livingCosts.transportation.range.min, livingCosts.transportation.range.max, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">数据来源</span>
+                {livingCosts.transportation.source ? (
+                  <a
+                    href={ensureUrlProtocol(livingCosts.transportation.source)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    {extractDomain(livingCosts.transportation.source) || livingCosts.transportation.source}
+                  </a>
+                ) : (
+                  <span className="text-gray-500 text-sm">无来源信息</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-2">水电费用</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">月度费用</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.utilities.amount, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">费用范围</span>
+                <span className="text-gray-700">{formatCurrencyRange(livingCosts.utilities.range.min, livingCosts.utilities.range.max, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">数据来源</span>
+                {livingCosts.utilities.source ? (
+                  <a
+                    href={ensureUrlProtocol(livingCosts.utilities.source)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    {extractDomain(livingCosts.utilities.source) || livingCosts.utilities.source}
+                  </a>
+                ) : (
+                  <span className="text-gray-500 text-sm">无来源信息</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-2">娱乐费用</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">月度费用</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.entertainment.amount, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">费用范围</span>
+                <span className="text-gray-700">{formatCurrencyRange(livingCosts.entertainment.range.min, livingCosts.entertainment.range.max, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">数据来源</span>
+                {livingCosts.entertainment.source ? (
+                  <a
+                    href={ensureUrlProtocol(livingCosts.entertainment.source)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    {extractDomain(livingCosts.entertainment.source) || livingCosts.entertainment.source}
+                  </a>
+                ) : (
+                  <span className="text-gray-500 text-sm">无来源信息</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border border-gray-200 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-2">其他费用</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">月度费用</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.miscellaneous.amount, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">费用范围</span>
+                <span className="text-gray-700">{formatCurrencyRange(livingCosts.miscellaneous.range.min, livingCosts.miscellaneous.range.max, livingCosts.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">数据来源</span>
+                {livingCosts.miscellaneous.source ? (
+                  <a
+                    href={ensureUrlProtocol(livingCosts.miscellaneous.source)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    {extractDomain(livingCosts.miscellaneous.source) || livingCosts.miscellaneous.source}
+                  </a>
+                ) : (
+                  <span className="text-gray-500 text-sm">无来源信息</span>
+                )}
+              </div>
             </div>
           </div>
         </div>

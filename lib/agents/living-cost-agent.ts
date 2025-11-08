@@ -20,7 +20,7 @@ export class LivingCostAgent {
       const realTimeData = await this.getRealTimeLivingCosts(city, country);
 
       // 计算各项费用
-      const accommodationCost = this.calculateAccommodationCost(country, accommodation, lifestyle, city, realTimeData?.accommodation_source);
+      const accommodationCost = await this.calculateAccommodationCost(userInput, realTimeData?.accommodation_source);
       const foodCost = this.calculateFoodCost(country, lifestyle, diet, city, realTimeData?.food_source);
       const transportationCost = this.calculateTransportationCost(country, transportation, lifestyle, city, realTimeData?.transportation_source);
       const utilitiesCost = this.calculateUtilitiesCost(country, accommodation, lifestyle, realTimeData?.utilities_source);
@@ -96,13 +96,11 @@ export class LivingCostAgent {
     }
   }
 
-  private calculateAccommodationCost(
-    country: 'US' | 'AU',
-    accommodation: string,
-    lifestyle: string,
-    city: string,
+  private async calculateAccommodationCost(
+    userInput: UserInput,
     source?: string
   ) {
+    const { country, city, accommodation, lifestyle } = userInput;
     const baseCost = ACCOMMODATION_BASE_COSTS[country][accommodation as keyof typeof ACCOMMODATION_BASE_COSTS['US']];
 
     // 城市调整系数
@@ -118,6 +116,31 @@ export class LivingCostAgent {
 
     const cityMultiplier = (cityMultipliers as any)[city] || 1.0;
     const adjustedCost = adjustForLifestyle(baseCost * cityMultiplier, lifestyle as any);
+
+    // 尝试获取更准确的住宿费用数据
+    try {
+      const searchQuery = `${userInput.university} ${city} ${country} student accommodation costs ${accommodation} ${new Date().getFullYear()} international students`;
+      const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
+
+      const fallbackData = {
+        accommodation_cost: adjustedCost,
+        source_url: source || 'https://www.numbeo.com',
+        confidence: 0.6
+      };
+
+      const extractedData = await safeLLMClient.extractAccommodationCost(searchResults, fallbackData);
+
+      if (extractedData && extractedData.accommodation_cost && extractedData.confidence > 0.7) {
+        return {
+          amount: Math.round(extractedData.accommodation_cost),
+          type: accommodation,
+          range: calculateRange(extractedData.accommodation_cost, 0.3),
+          source: extractedData.source_url
+        };
+      }
+    } catch (error) {
+      console.log('Accommodation cost search failed, using estimates');
+    }
 
     return {
       amount: Math.round(adjustedCost),
@@ -200,7 +223,7 @@ export class LivingCostAgent {
 
     return {
       amount: Math.round(adjustedCost),
-      range: calculateRange(adjustedCost, 0.3),
+      range: calculateRange(adjustedCost, 0.2),
       source: source
     };
   }
@@ -208,15 +231,30 @@ export class LivingCostAgent {
   private calculateEntertainmentCost(
     country: 'US' | 'AU',
     lifestyle: string,
-    city: string,
+    city?: string,
     source?: string
   ) {
-    const baseEntertainment = country === 'US' ? 250 : 200;
+    const baseEntertainment = country === 'US' ? 200 : 180;
+
     const adjustedCost = adjustForLifestyle(baseEntertainment, lifestyle as any);
 
+    // 城市调整
+    const cityMultipliers = {
+      'New York': 1.4,
+      'San Francisco': 1.5,
+      'Los Angeles': 1.2,
+      'Cambridge': 1.3,
+      'Sydney': 1.3,
+      'Melbourne': 1.2,
+      'Canberra': 1.1,
+    };
+
+    const cityMultiplier = (cityMultipliers as any)[city] || 1.0;
+    const finalCost = adjustedCost * cityMultiplier;
+
     return {
-      amount: Math.round(adjustedCost),
-      range: calculateRange(adjustedCost, 0.5),
+      amount: Math.round(finalCost),
+      range: calculateRange(finalCost, 0.4),
       source: source
     };
   }
@@ -226,12 +264,12 @@ export class LivingCostAgent {
     lifestyle: string,
     source?: string
   ) {
-    const baseMisc = country === 'US' ? 200 : 180;
-    const adjustedCost = adjustForLifestyle(baseMisc, lifestyle as any);
+    const baseMiscellaneous = country === 'US' ? 150 : 130;
+    const adjustedCost = adjustForLifestyle(baseMiscellaneous, lifestyle as any);
 
     return {
       amount: Math.round(adjustedCost),
-      range: calculateRange(adjustedCost, 0.4),
+      range: calculateRange(adjustedCost, 0.3),
       source: source
     };
   }
@@ -240,34 +278,49 @@ export class LivingCostAgent {
     const { country, lifestyle } = userInput;
     const currency = country === 'US' ? 'USD' : 'AUD';
 
-    // 紧急后备数据
-    const fallbackData = {
-      'US': {
-        'economy': { total: 1800 },
-        'standard': { total: 2500 },
-        'comfortable': { total: 3200 }
-      },
-      'AU': {
-        'economy': { total: 1600 },
-        'standard': { total: 2200 },
-        'comfortable': { total: 2800 }
-      }
-    };
-
-    const totalCost = (fallbackData as any)[country][lifestyle].total;
+    // 使用常量中的基础费用
+    const baseCosts = ACCOMMODATION_BASE_COSTS[country];
 
     return {
-      accommodation: { amount: Math.round(totalCost * 0.4), type: userInput.accommodation, range: calculateRange(totalCost * 0.4), source: '内部数据库估算' },
-      food: { amount: Math.round(totalCost * 0.25), range: calculateRange(totalCost * 0.25), source: '内部数据库估算' },
-      transportation: { amount: Math.round(totalCost * 0.1), range: calculateRange(totalCost * 0.1), source: '内部数据库估算' },
-      utilities: { amount: Math.round(totalCost * 0.1), range: calculateRange(totalCost * 0.1), source: '内部数据库估算' },
-      entertainment: { amount: Math.round(totalCost * 0.1), range: calculateRange(totalCost * 0.1), source: '内部数据库估算' },
-      miscellaneous: { amount: Math.round(totalCost * 0.05), range: calculateRange(totalCost * 0.05), source: '内部数据库估算' },
-      total: { amount: totalCost, range: calculateRange(totalCost) },
+      accommodation: {
+        amount: baseCosts[userInput.accommodation as keyof typeof baseCosts],
+        type: userInput.accommodation,
+        range: calculateRange(baseCosts[userInput.accommodation as keyof typeof baseCosts], 0.3),
+        source: '紧急后备数据'
+      },
+      food: {
+        amount: country === 'US' ? 400 : 350,
+        range: calculateRange(country === 'US' ? 400 : 350, 0.4),
+        source: '紧急后备数据'
+      },
+      transportation: {
+        amount: country === 'US' ? 120 : 100,
+        range: calculateRange(country === 'US' ? 120 : 100, 0.3),
+        source: '紧急后备数据'
+      },
+      utilities: {
+        amount: country === 'US' ? 150 : 130,
+        range: calculateRange(country === 'US' ? 150 : 130, 0.2),
+        source: '紧急后备数据'
+      },
+      entertainment: {
+        amount: country === 'US' ? 200 : 180,
+        range: calculateRange(country === 'US' ? 200 : 180, 0.4),
+        source: '紧急后备数据'
+      },
+      miscellaneous: {
+        amount: country === 'US' ? 150 : 130,
+        range: calculateRange(country === 'US' ? 150 : 130, 0.3),
+        source: '紧急后备数据'
+      },
+      total: {
+        amount: country === 'US' ? 2000 : 1800,
+        range: calculateRange(country === 'US' ? 2000 : 1800, 0.25)
+      },
       currency,
       period: 'monthly',
-      sources: ['内部数据库估算'],
-      confidence: 0.3 // 后备数据置信度较低
+      sources: ['紧急后备数据'],
+      confidence: 0.3
     };
   }
 }
