@@ -697,6 +697,25 @@ export default function CostReport({ report, onBack }: CostReportProps) {
             </div>
           )}
         </div>
+
+        {/* 年度总费用计算说明 */}
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h3 className="font-medium text-gray-900 mb-2">年度总费用计算说明</h3>
+          <div className="text-sm text-gray-700">
+            <p className="mb-2">
+              年度总费用 = 学费 + 12个月生活费 + 一次性费用
+            </p>
+            <p className="mb-2">
+              计算公式：{formatCurrency(summary.breakdown.tuition, summary.currency)} (学费) + 
+              {formatCurrency(summary.breakdown.living, summary.currency)} (12个月生活费) + 
+              {formatCurrency(summary.breakdown.other, summary.currency)} (一次性费用) = 
+              {formatCurrency(summary.totalAnnualCost.amount, summary.currency)}
+            </p>
+            <p>
+              数据来源：学费数据来自学校官网，生活费数据来自官方统计和实时查询，其他费用基于官方收费标准。
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* 区块5: 行动建议区 */}
