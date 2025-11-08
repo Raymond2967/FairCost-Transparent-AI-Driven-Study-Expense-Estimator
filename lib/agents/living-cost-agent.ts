@@ -66,8 +66,9 @@ export class LivingCostAgent {
 
   private async getRealTimeLivingCosts(city: string, country: 'US' | 'AU'): Promise<any> {
     try {
-      const searchQuery = `${city} ${country} cost of living 2024 rent food transportation monthly expenses`;
-
+      // 优先使用numbeo.com进行生活成本搜索
+      const searchQuery = `site:numbeo.com cost of living ${city}`;
+      
       // 使用gpt-4o-search-preview模型进行搜索
       const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
 
@@ -79,13 +80,13 @@ export class LivingCostAgent {
         entertainment: country === 'US' ? 300 : 250,
         miscellaneous: country === 'US' ? 200 : 180,
         total: country === 'US' ? 3080 : 2500,
-        source_url: 'https://www.numbeo.com',
-        accommodation_source: 'https://www.numbeo.com',
-        food_source: 'https://www.numbeo.com',
-        transportation_source: 'https://www.numbeo.com',
-        utilities_source: 'https://www.numbeo.com',
-        entertainment_source: 'https://www.numbeo.com',
-        miscellaneous_source: 'https://www.numbeo.com',
+        source_url: 'https://www.numbeo.com/cost-of-living/',
+        accommodation_source: 'https://www.numbeo.com/cost-of-living/',
+        food_source: 'https://www.numbeo.com/cost-of-living/',
+        transportation_source: 'https://www.numbeo.com/cost-of-living/',
+        utilities_source: 'https://www.numbeo.com/cost-of-living/',
+        entertainment_source: 'https://www.numbeo.com/cost-of-living/',
+        miscellaneous_source: 'https://www.numbeo.com/cost-of-living/',
         confidence: 0.7
       };
 
@@ -117,14 +118,28 @@ export class LivingCostAgent {
     const cityMultiplier = (cityMultipliers as any)[city] || 1.0;
     const adjustedCost = adjustForLifestyle(baseCost * cityMultiplier, lifestyle as any);
 
-    // 尝试获取更准确的住宿费用数据
+    // 尝试获取更准确的住宿费用数据，使用numbeo.com作为主要数据源
     try {
-      const searchQuery = `${userInput.university} ${city} ${country} student accommodation costs ${accommodation} ${new Date().getFullYear()} international students`;
+      let searchQuery = '';
+      switch (accommodation) {
+        case 'dormitory':
+          searchQuery = `site:numbeo.com cost of living ${city} student dormitory`;
+          break;
+        case 'shared':
+          searchQuery = `site:numbeo.com cost of living ${city} shared apartment`;
+          break;
+        case 'studio':
+          searchQuery = `site:numbeo.com cost of living ${city} studio apartment`;
+          break;
+        default:
+          searchQuery = `site:numbeo.com cost of living ${city} apartment`;
+      }
+      
       const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
 
       const fallbackData = {
         accommodation_cost: adjustedCost,
-        source_url: source || 'https://www.numbeo.com',
+        source_url: source || 'https://www.numbeo.com/cost-of-living/',
         confidence: 0.6
       };
 
@@ -146,7 +161,7 @@ export class LivingCostAgent {
       amount: Math.round(adjustedCost),
       type: accommodation,
       range: calculateRange(adjustedCost, 0.3),
-      source: source
+      source: source || 'https://www.numbeo.com/cost-of-living/'
     };
   }
 
