@@ -13,6 +13,8 @@ export class ReportAgent {
       // 计算年度总费用
       const totalAnnualCost = this.calculateTotalAnnualCost(tuition, livingCosts, otherCosts);
       const totalMonthlyCost = this.calculateTotalMonthlyCost(tuition, livingCosts, otherCosts);
+      // 计算总费用（考虑学费计费方式）
+      const totalCost = this.calculateTotalCost(tuition, livingCosts, otherCosts, userInput.programDuration || 2);
 
       // 收集所有来源
       const sources = this.collectAllSources(tuition, livingCosts, otherCosts);
@@ -25,6 +27,7 @@ export class ReportAgent {
         summary: {
           totalAnnualCost,
           totalMonthlyCost,
+          totalCost,
           currency: tuition.currency,
           breakdown: {
             tuition: tuition.amount,
@@ -138,18 +141,64 @@ export class ReportAgent {
     }
   }
 
+  private calculateTotalCost(
+    tuition: TuitionData,
+    livingCosts: LivingCosts,
+    otherCosts: OtherCosts,
+    programDuration: number
+  ) {
+    // 计算整个学习期间的总费用
+    let tuitionTotal = 0;
+    
+    // 根据学费计费方式计算总学费
+    switch (tuition.period) {
+      case 'annual':
+        // 年度计费
+        tuitionTotal = tuition.amount * programDuration;
+        break;
+      case 'semester':
+        // 学期计费（假设一年2个学期）
+        tuitionTotal = tuition.amount * programDuration * 2;
+        break;
+      case 'credit':
+        // 学分计费（假设硕士40学分/年，本科120学分/年）
+        const creditsPerYear = programDuration <= 1 ? 40 : 120;
+        tuitionTotal = tuition.amount * creditsPerYear * programDuration;
+        break;
+      default:
+        // 默认按年度计费
+        tuitionTotal = tuition.amount * programDuration;
+    }
+
+    // 生活费（按年计算）
+    const livingTotal = livingCosts.total.amount * 12 * programDuration;
+    
+    // 其他费用（一次性费用只计算一次）
+    const otherFees = (otherCosts.applicationFee?.amount || 0) + 
+                      (otherCosts.visaFee?.amount || 0) + 
+                      (otherCosts.healthInsurance?.amount || 0);
+
+    const totalAmount = tuitionTotal + livingTotal + otherFees;
+
+    return {
+      amount: Math.round(totalAmount),
+      range: {
+        min: Math.round(totalAmount * 0.9),
+        max: Math.round(totalAmount * 1.1)
+      },
+      duration: programDuration
+    };
+  }
+
   private calculateTotalAnnualCost(
     tuition: TuitionData,
     livingCosts: LivingCosts,
     otherCosts: OtherCosts
   ) {
-    // 计算年度总费用
+    // 计算年度总费用（不包含一次性费用）
     const livingAnnual = livingCosts.total.amount * 12;
-    const otherFees = (otherCosts.applicationFee?.amount || 0) + 
-                      (otherCosts.visaFee?.amount || 0) + 
-                      (otherCosts.healthInsurance?.amount || 0);
-
-    const totalAmount = tuition.amount + livingAnnual + otherFees;
+    
+    const totalAmount = tuition.amount + livingAnnual;
 
     return {
       amount: Math.round(totalAmount),

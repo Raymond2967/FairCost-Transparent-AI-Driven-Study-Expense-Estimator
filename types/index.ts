@@ -157,3 +157,34 @@ export interface CityData {
   avgCostOfLiving: number;
   currency: 'USD' | 'AUD';
 }
+
+export interface CostSummary {
+  totalAnnualCost: {
+    amount: number;
+    range: {
+      min: number;
+      max: number;
+    };
+  };
+  totalMonthlyCost: {
+    amount: number;
+    range: {
+      min: number;
+      max: number;
+    };
+  };
+  totalCost: {
+    amount: number;
+    range: {
+      min: number;
+      max: number;
+    };
+    duration: number;
+  };
+  currency: string;
+  breakdown: {
+    tuition: number;
+    living: number;
+    other: number;
+  };
+}

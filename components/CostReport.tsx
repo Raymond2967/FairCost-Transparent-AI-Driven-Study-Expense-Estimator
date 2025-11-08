@@ -233,7 +233,23 @@ export default function CostReport({ report, onBack }: CostReportProps) {
 
       {/* 区块2: 核心指标区 */}
       <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* 总花费 */}
+          <div className="border border-gray-200 rounded-lg p-6 text-center">
+            <p className="text-gray-600 mb-2">总花费</p>
+            <p className="text-4xl font-bold text-gray-900 mb-2">
+              {formatCurrency(summary.totalCost.amount, summary.currency)}
+            </p>
+            <p className="text-gray-600 text-sm">
+              估算范围: {formatCurrencyRange(summary.totalCost.range.min, summary.totalCost.range.max, summary.currency)}
+            </p>
+            <div className="mt-4 flex justify-center">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-800">
+                💼
+              </span>
+            </div>
+          </div>
+
           {/* 年度总估算费用 */}
           <div className="border border-gray-200 rounded-lg p-6 text-center">
             <p className="text-gray-600 mb-2">年度总估算费用</p>
@@ -700,16 +716,24 @@ export default function CostReport({ report, onBack }: CostReportProps) {
 
         {/* 年度总费用计算说明 */}
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h3 className="font-medium text-gray-900 mb-2">年度总费用计算说明</h3>
+          <h3 className="font-medium text-gray-900 mb-2">费用计算说明</h3>
           <div className="text-sm text-gray-700">
             <p className="mb-2">
-              年度总费用 = 学费 + 12个月生活费 + 一次性费用
+              <strong>年度总费用</strong> = 学费 + 12个月生活费
             </p>
             <p className="mb-2">
               计算公式：{formatCurrency(summary.breakdown.tuition, summary.currency)} (学费) + 
-              {formatCurrency(summary.breakdown.living, summary.currency)} (12个月生活费) + 
-              {formatCurrency(summary.breakdown.other, summary.currency)} (一次性费用) = 
+              {formatCurrency(summary.breakdown.living / 12, summary.currency)} × 12 (12个月生活费) = 
               {formatCurrency(summary.totalAnnualCost.amount, summary.currency)}
+            </p>
+            <p className="mb-2">
+              <strong>总花费</strong> = 学费总额 + 生活费总额 + 一次性费用
+            </p>
+            <p className="mb-2">
+              计算公式：{formatCurrency(tuition.amount, summary.currency)} × {summary.totalCost.duration}年 (学费总额) + 
+              {formatCurrency(livingCosts.total.amount, summary.currency)} × 12 × {summary.totalCost.duration} (生活费总额) + 
+              {formatCurrency(summary.breakdown.other, summary.currency)} (一次性费用) = 
+              {formatCurrency(summary.totalCost.amount, summary.currency)}
             </p>
             <p>
               数据来源：学费数据来自学校官网，生活费数据来自官方统计和实时查询，其他费用基于官方收费标准。
