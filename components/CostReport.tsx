@@ -421,7 +421,6 @@ export default function CostReport({ report, onBack }: CostReportProps) {
           <div className="grid grid-cols-1 gap-4">
             {recommendations.map((recommendation, index) => {
               const recommendationId = `rec-${index}`;
-              const isExpanded = expandedRecommendations[recommendationId];
               const detailedInfo = detailedRecommendations[recommendationId];
 
               return (
