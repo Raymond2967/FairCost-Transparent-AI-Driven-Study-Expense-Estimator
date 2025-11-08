@@ -151,16 +151,12 @@ export class OtherCostsAgent {
         };
       }
 
-      // 默认费用
-      const defaultInsurance = {
-        'US': { amount: 2500, source: '美国国际学生健康保险平均费用', confidence: 0.6 },
-        'AU': { amount: 600, source: '澳大利亚海外学生健康保险(OSHC)年费', confidence: 0.6 }
-      };
-
-      return defaultInsurance[country];
+      // 如果没有找到可靠的保险数据，返回undefined
+      return undefined;
 
     } catch (error) {
       console.error('Health insurance query failed:', error);
+      // 如果查询失败，返回undefined而不是默认值
       return undefined;
     }
   }
@@ -169,10 +165,10 @@ export class OtherCostsAgent {
     const { country } = userInput;
     const currency = country === 'US' ? 'USD' : 'AUD';
 
+    // 注意：这里不包含健康保险，因为如果没有找到可靠数据，就不应该显示
     return {
       applicationFee: { amount: country === 'US' ? 85 : 100, source: '紧急后备数据', confidence: 0.3 },
       visaFee: { amount: country === 'US' ? 350 : 650, source: '官方标准费用', confidence: 0.9 },
-      healthInsurance: { amount: country === 'US' ? 2500 : 600, source: '紧急后备数据', confidence: 0.3 },
       currency
     };
   }

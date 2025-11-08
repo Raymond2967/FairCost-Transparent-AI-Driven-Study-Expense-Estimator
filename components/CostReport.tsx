@@ -85,19 +85,47 @@ export default function CostReport({ report, onBack }: CostReportProps) {
     // 如果还没有详细信息，获取详细信息
     if (!detailedRecommendations[recommendationId]) {
       try {
-        // 模拟获取详细建议的API调用
+        // 构建更具体的提示词给AI
+        const detailedPrompt = `根据以下用户情况，为第${index + 1}个省钱建议提供更详细的说明：
+        用户情况：
+        - 学校：${userInput.university}
+        - 专业：${userInput.program}
+        - 学位：${userInput.level === 'undergraduate' ? '本科' : '硕士'}
+        - 生活方式：${userInput.lifestyle === 'economy' ? '经济型' : userInput.lifestyle === 'comfortable' ? '舒适型' : '标准型'}
+        - 住宿偏好：${userInput.accommodation === 'dormitory' ? '宿舍' : userInput.accommodation === 'apartment' ? '公寓' : '其他'}
+        
+        建议内容：${recommendations[index]}
+        
+        请提供：
+        1. 具体实施步骤
+        2. 预期节省金额范围
+        3. 注意事项
+        4. 相关资源链接（如果有）
+        
+        回复应为简洁明了的中文内容。`;
+
+        // 模拟获取详细建议的API调用（实际项目中这里会调用AI API）
         const detailedInfo = {
           id: recommendationId,
           title: `建议 ${index + 1}`,
           description: recommendations[index],
           details: `根据您的具体情况（${userInput.university}的${userInput.program}专业，${userInput.level === 'undergraduate' ? '本科' : '硕士'}阶段，选择${userInput.lifestyle === 'economy' ? '经济型' : userInput.lifestyle === 'comfortable' ? '舒适型' : '标准型'}生活方式），我们为您提供以下详细建议：
 
-1. 具体实施步骤
-2. 预期节省金额
-3. 注意事项
-4. 相关资源链接
+1. 具体实施步骤：
+   - 研究学校提供的学生服务和折扣
+   - 比较不同供应商的价格和服务
+   - 制定详细的预算计划
 
-这个建议是基于AI分析您的个人情况后生成的个性化建议。`
+2. 预期节省金额：
+   - 根据您的情况，预计每月可节省$100-$300
+
+3. 注意事项：
+   - 确保不降低生活质量
+   - 避免影响学习和社交活动
+
+4. 相关资源链接：
+   - 学校学生服务网站
+   - 当地学生折扣平台`
         };
 
         setDetailedRecommendations(prev => ({
@@ -301,10 +329,15 @@ export default function CostReport({ report, onBack }: CostReportProps) {
               <span className="text-gray-600">签证费</span>
               <span className="font-semibold text-gray-900">{formatCurrency(otherCosts.visaFee.amount, otherCosts.currency)}</span>
             </div>
-            {otherCosts.healthInsurance && (
+            {otherCosts.healthInsurance ? (
               <div className="flex justify-between">
                 <span className="text-gray-600">健康保险</span>
                 <span className="font-semibold text-gray-900">{formatCurrency(otherCosts.healthInsurance.amount, otherCosts.currency)}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <span className="text-gray-600">健康保险</span>
+                <span className="font-semibold text-gray-500">无数据</span>
               </div>
             )}
             <div className="pt-2 border-t border-gray-200">
@@ -338,7 +371,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <span className="text-gray-500 text-sm">无来源信息</span>
                 )}
               </div>
-              {otherCosts.healthInsurance && otherCosts.healthInsurance.source && (
+              {otherCosts.healthInsurance && otherCosts.healthInsurance.source ? (
                 <div className="flex justify-between">
                   <span className="text-gray-600">保险费来源</span>
                   <a
@@ -349,6 +382,16 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   >
                     {extractDomain(otherCosts.healthInsurance.source) || otherCosts.healthInsurance.source}
                   </a>
+                </div>
+              ) : otherCosts.healthInsurance ? (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">保险费来源</span>
+                  <span className="text-gray-500 text-sm">无来源信息</span>
+                </div>
+              ) : (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">保险费来源</span>
+                  <span className="text-gray-500 text-sm">无保险数据</span>
                 </div>
               )}
             </div>
@@ -369,10 +412,12 @@ export default function CostReport({ report, onBack }: CostReportProps) {
               return (
                 <div 
                   key={index} 
-                  className="border border-gray-200 rounded-lg hover:border-blue-300 transition-colors cursor-pointer"
-                  onClick={() => toggleRecommendation(index)}
+                  className="border border-gray-200 rounded-lg hover:border-blue-300 transition-colors"
                 >
-                  <div className="p-4">
+                  <div 
+                    className="p-4 cursor-pointer"
+                    onClick={() => toggleRecommendation(index)}
+                  >
                     <div className="flex justify-between items-start">
                       <p className="text-gray-800 flex-1">{recommendation}</p>
                       <span className="text-gray-500 text-sm ml-2">
@@ -383,17 +428,32 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                     {isExpanded && detailedInfo && (
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <h4 className="font-semibold text-gray-900 mb-2">{detailedInfo.title}</h4>
-                        <p className="text-gray-700 mb-3">{detailedInfo.details}</p>
-                        <button 
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // 这里可以添加获取更多详细信息的逻辑
-                            alert('获取更多详细信息');
-                          }}
-                        >
-                          获取更多详细信息 →
-                        </button>
+                        <div className="text-gray-700 mb-3 whitespace-pre-line">{detailedInfo.details}</div>
+                        <div className="flex space-x-4">
+                          <button 
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // 这里可以添加获取更多详细信息的逻辑
+                              alert('获取更多详细信息');
+                            }}
+                          >
+                            获取更多详细信息 →
+                          </button>
+                          <button 
+                            className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // 收起详细信息
+                              setExpandedRecommendations(prev => ({
+                                ...prev,
+                                [recommendationId]: false
+                              }));
+                            }}
+                          >
+                            收起
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

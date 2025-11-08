@@ -659,6 +659,14 @@ video {
   margin-top: calc(2rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(2rem * var(--tw-space-y-reverse));
 }
+.space-x-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 0;
+  margin-right: calc(1rem * var(--tw-space-x-reverse));
+  margin-left: calc(1rem * calc(1 - var(--tw-space-x-reverse)));
+}
+.whitespace-pre-line {
+  white-space: pre-line;
+}
 .rounded-full {
   border-radius: 9999px;
 }
@@ -999,6 +1007,11 @@ a {
 .hover\:text-red-800:hover {
   --tw-text-opacity: 1;
   color: rgb(153 27 27 / var(--tw-text-opacity, 1));
+}
+
+.hover\:text-gray-800:hover {
+  --tw-text-opacity: 1;
+  color: rgb(31 41 55 / var(--tw-text-opacity, 1));
 }
 
 .hover\:underline:hover {
