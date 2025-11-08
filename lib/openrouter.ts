@@ -49,7 +49,7 @@ export class OpenRouterClient {
     }
   }
 
-  async searchWeb(query: string): Promise<string> {
+  async searchWeb(query: string, model: string = OPENROUTER_CONFIG.model): Promise<string> {
     try {
       const messages = [
         {
@@ -64,7 +64,7 @@ export class OpenRouterClient {
       ];
 
       return await this.chat({
-        model: OPENROUTER_CONFIG.model,
+        model: model, // 使用传入的模型参数
         messages,
         temperature: 0.3,
         max_tokens: 1500

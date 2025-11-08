@@ -22,6 +22,7 @@ export interface TuitionData {
   source: string;
   isEstimate: boolean;
   lastUpdated: string;
+  confidence?: number; // 置信度 (0-1)
 }
 
 // 生活费用数据接口
@@ -30,26 +31,32 @@ export interface LivingCosts {
     amount: number;
     type: string;
     range: { min: number; max: number };
+    source?: string; // 单项来源
   };
   food: {
     amount: number;
     range: { min: number; max: number };
+    source?: string; // 单项来源
   };
   transportation: {
     amount: number;
     range: { min: number; max: number };
+    source?: string; // 单项来源
   };
   utilities: {
     amount: number;
     range: { min: number; max: number };
+    source?: string; // 单项来源
   };
   entertainment: {
     amount: number;
     range: { min: number; max: number };
+    source?: string; // 单项来源
   };
   miscellaneous: {
     amount: number;
     range: { min: number; max: number };
+    source?: string; // 单项来源
   };
   total: {
     amount: number;
@@ -58,6 +65,7 @@ export interface LivingCosts {
   currency: 'USD' | 'AUD';
   period: 'monthly';
   sources: string[];
+  confidence?: number; // 总体置信度 (0-1)
 }
 
 // 其他费用接口
@@ -65,14 +73,17 @@ export interface OtherCosts {
   applicationFee: {
     amount: number;
     source: string;
+    confidence?: number; // 置信度 (0-1)
   };
   visaFee: {
     amount: number;
     source: string;
+    confidence?: number; // 置信度 (0-1)
   };
   healthInsurance?: {
     amount: number;
     source: string;
+    confidence?: number; // 置信度 (0-1)
   };
   currency: 'USD' | 'AUD';
 }

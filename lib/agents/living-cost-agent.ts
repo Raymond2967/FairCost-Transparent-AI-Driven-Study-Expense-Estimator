@@ -1,7 +1,7 @@
 import { openRouterClient } from '../openrouter';
 import { safeLLMClient } from '../safe-llm-client';
 import { UserInput, LivingCosts } from '@/types';
-import { CITIES, LIFESTYLE_MULTIPLIERS, ACCOMMODATION_BASE_COSTS } from '../constants';
+import { CITIES, LIFESTYLE_MULTIPLIERS, ACCOMMODATION_BASE_COSTS, SEARCH_MODEL } from '../constants';
 import { adjustForLifestyle, calculateRange } from '../utils';
 
 export class LivingCostAgent {
@@ -20,12 +20,12 @@ export class LivingCostAgent {
       const realTimeData = await this.getRealTimeLivingCosts(city, country);
 
       // 计算各项费用
-      const accommodationCost = this.calculateAccommodationCost(country, accommodation, lifestyle, city);
-      const foodCost = this.calculateFoodCost(country, lifestyle, diet, city);
-      const transportationCost = this.calculateTransportationCost(country, transportation, lifestyle, city);
-      const utilitiesCost = this.calculateUtilitiesCost(country, accommodation, lifestyle);
-      const entertainmentCost = this.calculateEntertainmentCost(country, lifestyle, city);
-      const miscellaneousCost = this.calculateMiscellaneousCost(country, lifestyle);
+      const accommodationCost = this.calculateAccommodationCost(country, accommodation, lifestyle, city, realTimeData?.accommodation_source);
+      const foodCost = this.calculateFoodCost(country, lifestyle, diet, city, realTimeData?.food_source);
+      const transportationCost = this.calculateTransportationCost(country, transportation, lifestyle, city, realTimeData?.transportation_source);
+      const utilitiesCost = this.calculateUtilitiesCost(country, accommodation, lifestyle, realTimeData?.utilities_source);
+      const entertainmentCost = this.calculateEntertainmentCost(country, lifestyle, city, realTimeData?.entertainment_source);
+      const miscellaneousCost = this.calculateMiscellaneousCost(country, lifestyle, realTimeData?.miscellaneous_source);
 
       const totalMonthlyCost =
         accommodationCost.amount +
@@ -51,10 +51,10 @@ export class LivingCostAgent {
         currency,
         period: 'monthly',
         sources: [
-          'https://www.numbeo.com',
-          'https://www.expatistan.com',
-          realTimeData?.source || '官方统计数据'
-        ]
+          realTimeData?.source_url || 'https://www.numbeo.com',
+          'https://www.expatistan.com'
+        ].filter(Boolean) as string[],
+        confidence: realTimeData?.confidence || 0.5
       };
 
     } catch (error) {
@@ -68,16 +68,25 @@ export class LivingCostAgent {
     try {
       const searchQuery = `${city} ${country} cost of living 2024 rent food transportation monthly expenses`;
 
-      const searchResults = await safeLLMClient.safeSearch(searchQuery);
+      // 使用gpt-4o-search-preview模型进行搜索
+      const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
 
       const fallbackData = {
-        rent_1br: country === 'US' ? 1800 : 1400,
-        rent_3br: country === 'US' ? 3000 : 2200,
-        food_monthly: country === 'US' ? 450 : 380,
-        transportation_monthly: country === 'US' ? 150 : 120,
-        utilities_monthly: country === 'US' ? 180 : 150,
-        entertainment_monthly: country === 'US' ? 300 : 250,
-        source: 'Numbeo.com估算'
+        accommodation: country === 'US' ? 1800 : 1400,
+        food: country === 'US' ? 450 : 380,
+        transportation: country === 'US' ? 150 : 120,
+        utilities: country === 'US' ? 180 : 150,
+        entertainment: country === 'US' ? 300 : 250,
+        miscellaneous: country === 'US' ? 200 : 180,
+        total: country === 'US' ? 3080 : 2500,
+        source_url: 'https://www.numbeo.com',
+        accommodation_source: 'https://www.numbeo.com',
+        food_source: 'https://www.numbeo.com',
+        transportation_source: 'https://www.numbeo.com',
+        utilities_source: 'https://www.numbeo.com',
+        entertainment_source: 'https://www.numbeo.com',
+        miscellaneous_source: 'https://www.numbeo.com',
+        confidence: 0.7
       };
 
       return await safeLLMClient.extractLivingCosts(searchResults, fallbackData);
@@ -91,7 +100,8 @@ export class LivingCostAgent {
     country: 'US' | 'AU',
     accommodation: string,
     lifestyle: string,
-    city: string
+    city: string,
+    source?: string
   ) {
     const baseCost = ACCOMMODATION_BASE_COSTS[country][accommodation as keyof typeof ACCOMMODATION_BASE_COSTS['US']];
 
@@ -112,7 +122,8 @@ export class LivingCostAgent {
     return {
       amount: Math.round(adjustedCost),
       type: accommodation,
-      range: calculateRange(adjustedCost, 0.3)
+      range: calculateRange(adjustedCost, 0.3),
+      source: source
     };
   }
 
@@ -120,7 +131,8 @@ export class LivingCostAgent {
     country: 'US' | 'AU',
     lifestyle: string,
     diet?: string,
-    city?: string
+    city?: string,
+    source?: string
   ) {
     const baseFood = country === 'US' ? 400 : 350; // 基础食物成本
 
@@ -138,7 +150,8 @@ export class LivingCostAgent {
 
     return {
       amount: Math.round(adjustedCost),
-      range: calculateRange(adjustedCost, 0.4)
+      range: calculateRange(adjustedCost, 0.4),
+      source: source
     };
   }
 
@@ -146,7 +159,8 @@ export class LivingCostAgent {
     country: 'US' | 'AU',
     transportation?: string,
     lifestyle?: string,
-    city?: string
+    city?: string,
+    source?: string
   ) {
     const transportCosts = {
       'walking': country === 'US' ? 50 : 40,
@@ -160,14 +174,16 @@ export class LivingCostAgent {
 
     return {
       amount: Math.round(adjustedCost),
-      range: calculateRange(adjustedCost, 0.3)
+      range: calculateRange(adjustedCost, 0.3),
+      source: source
     };
   }
 
   private calculateUtilitiesCost(
     country: 'US' | 'AU',
     accommodation: string,
-    lifestyle: string
+    lifestyle: string,
+    source?: string
   ) {
     const baseUtilities = country === 'US' ? 150 : 130;
 
@@ -184,34 +200,39 @@ export class LivingCostAgent {
 
     return {
       amount: Math.round(adjustedCost),
-      range: calculateRange(adjustedCost, 0.3)
+      range: calculateRange(adjustedCost, 0.3),
+      source: source
     };
   }
 
   private calculateEntertainmentCost(
     country: 'US' | 'AU',
     lifestyle: string,
-    city: string
+    city: string,
+    source?: string
   ) {
     const baseEntertainment = country === 'US' ? 250 : 200;
     const adjustedCost = adjustForLifestyle(baseEntertainment, lifestyle as any);
 
     return {
       amount: Math.round(adjustedCost),
-      range: calculateRange(adjustedCost, 0.5)
+      range: calculateRange(adjustedCost, 0.5),
+      source: source
     };
   }
 
   private calculateMiscellaneousCost(
     country: 'US' | 'AU',
-    lifestyle: string
+    lifestyle: string,
+    source?: string
   ) {
     const baseMisc = country === 'US' ? 200 : 180;
     const adjustedCost = adjustForLifestyle(baseMisc, lifestyle as any);
 
     return {
       amount: Math.round(adjustedCost),
-      range: calculateRange(adjustedCost, 0.4)
+      range: calculateRange(adjustedCost, 0.4),
+      source: source
     };
   }
 
@@ -236,16 +257,17 @@ export class LivingCostAgent {
     const totalCost = (fallbackData as any)[country][lifestyle].total;
 
     return {
-      accommodation: { amount: Math.round(totalCost * 0.4), type: userInput.accommodation, range: calculateRange(totalCost * 0.4) },
-      food: { amount: Math.round(totalCost * 0.25), range: calculateRange(totalCost * 0.25) },
-      transportation: { amount: Math.round(totalCost * 0.1), range: calculateRange(totalCost * 0.1) },
-      utilities: { amount: Math.round(totalCost * 0.1), range: calculateRange(totalCost * 0.1) },
-      entertainment: { amount: Math.round(totalCost * 0.1), range: calculateRange(totalCost * 0.1) },
-      miscellaneous: { amount: Math.round(totalCost * 0.05), range: calculateRange(totalCost * 0.05) },
+      accommodation: { amount: Math.round(totalCost * 0.4), type: userInput.accommodation, range: calculateRange(totalCost * 0.4), source: '内部数据库估算' },
+      food: { amount: Math.round(totalCost * 0.25), range: calculateRange(totalCost * 0.25), source: '内部数据库估算' },
+      transportation: { amount: Math.round(totalCost * 0.1), range: calculateRange(totalCost * 0.1), source: '内部数据库估算' },
+      utilities: { amount: Math.round(totalCost * 0.1), range: calculateRange(totalCost * 0.1), source: '内部数据库估算' },
+      entertainment: { amount: Math.round(totalCost * 0.1), range: calculateRange(totalCost * 0.1), source: '内部数据库估算' },
+      miscellaneous: { amount: Math.round(totalCost * 0.05), range: calculateRange(totalCost * 0.05), source: '内部数据库估算' },
       total: { amount: totalCost, range: calculateRange(totalCost) },
       currency,
       period: 'monthly',
-      sources: ['内部数据库估算']
+      sources: ['内部数据库估算'],
+      confidence: 0.3 // 后备数据置信度较低
     };
   }
 }

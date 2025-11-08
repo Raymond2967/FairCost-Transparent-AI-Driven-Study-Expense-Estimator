@@ -1,7 +1,7 @@
 import { openRouterClient } from '../openrouter';
 import { safeLLMClient } from '../safe-llm-client';
 import { UserInput, TuitionData } from '@/types';
-import { US_UNIVERSITIES, AU_UNIVERSITIES } from '../constants';
+import { US_UNIVERSITIES, AU_UNIVERSITIES, SEARCH_MODEL } from '../constants';
 
 export class TuitionAgent {
   async queryTuition(userInput: UserInput): Promise<TuitionData> {
@@ -45,8 +45,8 @@ export class TuitionAgent {
       // 构建搜索查询
       const searchQuery = `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`;
 
-      // 使用安全的LLM客户端进行搜索和数据提取
-      const searchResults = await safeLLMClient.safeSearch(searchQuery);
+      // 使用gpt-4o-search-preview模型进行搜索
+      const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
 
       const fallbackData = {
         tuition_amount: country === 'US' ? 50000 : 45000,
@@ -54,7 +54,6 @@ export class TuitionAgent {
         period: 'annual',
         source_url: universityData.website,
         is_estimate: true,
-        last_updated: new Date().toISOString(),
         confidence: 0.5
       };
 
@@ -66,8 +65,9 @@ export class TuitionAgent {
           currency: extractedData.currency,
           period: extractedData.period,
           source: extractedData.source_url || universityData.website,
-          isEstimate: false,
-          lastUpdated: new Date().toISOString()
+          isEstimate: extractedData.is_estimate || false,
+          lastUpdated: new Date().toISOString(),
+          confidence: extractedData.confidence
         };
       }
 
@@ -102,7 +102,7 @@ export class TuitionAgent {
       Provide a realistic estimate based on similar institutions and programs.`;
 
       const estimationResponse = await openRouterClient.chat({
-        model: 'openai/gpt-4o',
+        model: SEARCH_MODEL, // 使用搜索模型进行估算
         messages: [
           {
             role: 'system',
@@ -121,7 +121,8 @@ export class TuitionAgent {
         "currency": "USD",
         "period": "annual",
         "reasoning": "Based on similar programs at comparable institutions",
-        "confidence_level": "medium"
+        "confidence_level": "medium",
+        "source_url": "https://university.edu"
       }`;
 
       const estimatedData = await openRouterClient.extractStructuredData(
@@ -144,13 +145,24 @@ export class TuitionAgent {
       const fallbackAmount = defaultEstimates[country][level].private; // 使用私立大学费用作为保守估计
       const currency = country === 'US' ? 'USD' : 'AUD';
 
+      // 确定置信度
+      let confidence = 0.6;
+      if (estimatedData?.confidence_level === 'high') {
+        confidence = 0.8;
+      } else if (estimatedData?.confidence_level === 'medium') {
+        confidence = 0.6;
+      } else if (estimatedData?.confidence_level === 'low') {
+        confidence = 0.4;
+      }
+
       return {
         amount: estimatedData?.estimated_tuition || fallbackAmount,
         currency: currency as 'USD' | 'AUD',
         period: 'annual',
-        source: `内部估算基于${university}同类项目市场数据`,
+        source: estimatedData?.source_url || `内部估算基于${university}同类项目市场数据`,
         isEstimate: true,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        confidence: confidence
       };
 
     } catch (error) {
@@ -168,7 +180,8 @@ export class TuitionAgent {
         period: 'annual',
         source: '基于市场平均数据的紧急估算',
         isEstimate: true,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        confidence: 0.3 // 紧急估算置信度较低
       };
     }
   }

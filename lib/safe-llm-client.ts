@@ -44,10 +44,10 @@ export class SafeLLMClient {
     return fallbackData;
   }
 
-  async safeSearch(query: string, fallbackContent: string = '数据暂时不可用'): Promise<string> {
+  async safeSearch(query: string, fallbackContent: string = '数据暂时不可用', model: string = 'openai/gpt-4o'): Promise<string> {
     try {
       console.log('Performing web search:', query);
-      const result = await openRouterClient.searchWeb(query);
+      const result = await openRouterClient.searchWeb(query, model);
       return result || fallbackContent;
     } catch (error) {
       console.error('Web search failed:', error);
@@ -101,16 +101,35 @@ export class SafeLLMClient {
     );
   }
 
+  async extractLivingCosts(content: string, fallback: any) {
+    return this.safeExtractData(
+      content,
+      `{
+        "accommodation": 1200,
+        "food": 400,
+        "transportation": 150,
+        "utilities": 120,
+        "entertainment": 200,
+        "miscellaneous": 150,
+        "total": 2220,
+        "source_url": "https://numbeo.com",
+        "confidence": 0.75
+      }`,
+      fallback,
+      '生活费用数据'
+    );
+  }
+
   async extractApplicationFee(content: string, fallback: any) {
     return this.safeExtractData(
       content,
       `{
-        "application_fee": 100,
-        "source_url": "https://university.edu/admissions",
+        "application_fee": 85,
+        "source_url": "https://university.edu",
         "confidence": 0.8
       }`,
       fallback,
-      '申请费数据'
+      '申请费用数据'
     );
   }
 
@@ -118,30 +137,12 @@ export class SafeLLMClient {
     return this.safeExtractData(
       content,
       `{
-        "insurance_cost_annual": 600,
-        "is_mandatory": true,
-        "source_url": "https://university.edu/health",
-        "confidence": 0.8
+        "insurance_fee": 2500,
+        "source_url": "https://insurance.com",
+        "confidence": 0.7
       }`,
       fallback,
-      '健康保险数据'
-    );
-  }
-
-  async extractLivingCosts(content: string, fallback: any) {
-    return this.safeExtractData(
-      content,
-      `{
-        "rent_1br": 1500,
-        "rent_3br": 2500,
-        "food_monthly": 400,
-        "transportation_monthly": 120,
-        "utilities_monthly": 150,
-        "entertainment_monthly": 200,
-        "source": "https://numbeo.com"
-      }`,
-      fallback,
-      '生活成本数据'
+      '健康保险费用数据'
     );
   }
 }

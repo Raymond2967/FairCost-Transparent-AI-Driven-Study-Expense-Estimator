@@ -1,7 +1,7 @@
 import { openRouterClient } from '../openrouter';
 import { safeLLMClient } from '../safe-llm-client';
 import { UserInput, OtherCosts } from '@/types';
-import { VISA_FEES, US_UNIVERSITIES, AU_UNIVERSITIES } from '../constants';
+import { VISA_FEES, US_UNIVERSITIES, AU_UNIVERSITIES, SEARCH_MODEL } from '../constants';
 
 export class OtherCostsAgent {
   async calculateOtherCosts(userInput: UserInput): Promise<OtherCosts> {
@@ -34,7 +34,7 @@ export class OtherCostsAgent {
     university: string,
     level: 'undergraduate' | 'graduate',
     country: 'US' | 'AU'
-  ): Promise<{ amount: number; source: string }> {
+  ): Promise<{ amount: number; source: string; confidence?: number }> {
     try {
       // 获取大学官网信息
       const universityData = [...US_UNIVERSITIES, ...AU_UNIVERSITIES].find(
@@ -48,7 +48,8 @@ export class OtherCostsAgent {
       // 搜索申请费信息
       const searchQuery = `${university} application fee ${level} ${new Date().getFullYear()} international students`;
 
-      const searchResults = await safeLLMClient.safeSearch(searchQuery);
+      // 使用gpt-4o-search-preview模型进行搜索
+      const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
 
       const fallbackData = {
         application_fee: country === 'US' ? 85 : 100,
@@ -61,7 +62,8 @@ export class OtherCostsAgent {
       if (extractedData && extractedData.application_fee && extractedData.confidence > 0.6) {
         return {
           amount: extractedData.application_fee,
-          source: this.validateUrl(extractedData.source_url) || universityData.website
+          source: this.validateUrl(extractedData.source_url) || universityData.website,
+          confidence: extractedData.confidence
         };
       }
 
@@ -73,7 +75,8 @@ export class OtherCostsAgent {
 
       return {
         amount: (defaultFees as any)[country][level],
-        source: `${university}申请费估算`
+        source: `${university}申请费估算`,
+        confidence: 0.6
       };
 
     } catch (error) {
@@ -87,111 +90,89 @@ export class OtherCostsAgent {
 
       return {
         amount: (emergencyFees as any)[country][level],
-        source: '基于市场平均数据估算'
+        source: '基于市场平均数据估算',
+        confidence: 0.4
       };
     }
   }
 
-  private async getVisaFee(country: 'US' | 'AU'): Promise<{ amount: number; source: string }> {
+  private async getVisaFee(country: 'US' | 'AU'): Promise<{ amount: number; source: string; confidence?: number }> {
     try {
       if (country === 'US') {
         return {
           amount: VISA_FEES.US.F1,
-          source: VISA_FEES.US.source
+          source: VISA_FEES.US.source,
+          confidence: 0.9 // 官方费用，置信度高
         };
       } else {
         return {
           amount: VISA_FEES.AU.student,
-          source: VISA_FEES.AU.source
+          source: VISA_FEES.AU.source,
+          confidence: 0.9 // 官方费用，置信度高
         };
       }
     } catch (error) {
       console.error('Visa fee query failed:', error);
-
-      // 后备费用
-      return {
-        amount: country === 'US' ? 350 : 650,
-        source: `${country}学生签证费用（估算）`
+      
+      // 紧急后备费用
+      const emergencyFees = {
+        'US': { amount: 350, source: '美国学生签证标准费用', confidence: 0.8 },
+        'AU': { amount: 650, source: '澳大利亚学生签证标准费用', confidence: 0.8 }
       };
+
+      return emergencyFees[country];
     }
   }
 
   private async getHealthInsurance(
     country: 'US' | 'AU',
     university: string
-  ): Promise<{ amount: number; source: string } | undefined> {
+  ): Promise<{ amount: number; source: string; confidence?: number } | undefined> {
     try {
-      // 搜索健康保险要求
-      const searchQuery = `${university} health insurance requirement cost international students ${country} ${new Date().getFullYear()}`;
+      // 搜索健康保险费用
+      const searchQuery = `${university} ${country === 'US' ? 'health insurance' : 'OSHC'} international students ${new Date().getFullYear()}`;
 
-      const searchResults = await safeLLMClient.safeSearch(searchQuery);
+      // 使用gpt-4o-search-preview模型进行搜索
+      const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
 
       const fallbackData = {
-        insurance_cost_annual: country === 'US' ? 2500 : 600,
-        is_mandatory: true,
-        source_url: `${university}健康保险要求`,
+        insurance_fee: country === 'US' ? 2500 : 600,
+        source_url: 'https://www.healthcare.gov',
         confidence: 0.5
       };
 
       const extractedData = await safeLLMClient.extractHealthInsurance(searchResults, fallbackData);
 
-      if (extractedData && extractedData.insurance_cost_annual && extractedData.is_mandatory) {
+      if (extractedData && extractedData.insurance_fee && extractedData.confidence > 0.6) {
         return {
-          amount: extractedData.insurance_cost_annual,
-          source: this.validateUrl(extractedData.source_url) || `${university}健康保险要求`
+          amount: extractedData.insurance_fee,
+          source: this.validateUrl(extractedData.source_url) || '健康保险提供商',
+          confidence: extractedData.confidence
         };
       }
 
-      // 根据国家返回典型保险费用
-      const typicalInsurance = {
-        'US': 2500,
-        'AU': 600
+      // 默认费用
+      const defaultInsurance = {
+        'US': { amount: 2500, source: '美国国际学生健康保险平均费用', confidence: 0.6 },
+        'AU': { amount: 600, source: '澳大利亚海外学生健康保险(OSHC)年费', confidence: 0.6 }
       };
 
-      return {
-        amount: typicalInsurance[country],
-        source: `${country}国际学生健康保险典型费用`
-      };
+      return defaultInsurance[country];
 
     } catch (error) {
-      console.log('Health insurance data not available');
-
-      // 某些情况下可能不是强制性的，返回undefined
-      if (country === 'AU') {
-        return {
-          amount: 600, // OSHC费用
-          source: '澳大利亚海外学生健康保险(OSHC)'
-        };
-      }
-
+      console.error('Health insurance query failed:', error);
       return undefined;
     }
   }
 
   private getFallbackOtherCosts(userInput: UserInput): OtherCosts {
-    const { country, level } = userInput;
+    const { country } = userInput;
     const currency = country === 'US' ? 'USD' : 'AUD';
 
-    // 紧急后备数据
-    const fallbackData = {
-      'US': {
-        applicationFee: { amount: 85, source: '美国大学申请费估算' },
-        visaFee: { amount: 350, source: '美国F-1学生签证费用' },
-        healthInsurance: { amount: 2500, source: '美国国际学生健康保险估算' }
-      },
-      'AU': {
-        applicationFee: { amount: 100, source: '澳大利亚大学申请费估算' },
-        visaFee: { amount: 650, source: '澳大利亚学生签证费用' },
-        healthInsurance: { amount: 600, source: 'OSHC海外学生健康保险' }
-      }
-    };
-
-    const data = (fallbackData as any)[country];
-
     return {
-      applicationFee: data.applicationFee,
-      visaFee: data.visaFee,
-      healthInsurance: data.healthInsurance,
+      applicationFee: { amount: country === 'US' ? 85 : 100, source: '紧急后备数据', confidence: 0.3 },
+      visaFee: { amount: country === 'US' ? 350 : 650, source: '官方标准费用', confidence: 0.9 },
+      healthInsurance: { amount: country === 'US' ? 2500 : 600, source: '紧急后备数据', confidence: 0.3 },
       currency
     };
   }
@@ -214,27 +195,10 @@ export class OtherCostsAgent {
   }
 
   private validateUrl(url: string): string | null {
-    if (!url || typeof url !== 'string') {
-      return null;
-    }
-
     try {
-      // 检查是否是有效的URL
       new URL(url);
-
-      // 检查是否包含中文字符
-      const chineseRegex = /[\u4e00-\u9fff]/;
-      if (chineseRegex.test(url)) {
-        return null;
-      }
-
-      // 检查是否是合理的域名
-      if (url.includes('http') && url.includes('.')) {
-        return url;
-      }
-
-      return null;
-    } catch (error) {
+      return url;
+    } catch {
       return null;
     }
   }

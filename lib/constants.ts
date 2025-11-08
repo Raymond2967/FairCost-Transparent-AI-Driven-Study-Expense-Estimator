@@ -91,3 +91,9 @@ export const OPENROUTER_CONFIG = {
   temperature: 0.3,
   max_tokens: 2000
 } as const;
+
+// 搜索模型配置
+export const SEARCH_MODEL = "openai/gpt-4o-search-preview";
+
+// 报告生成模型配置
+export const REPORT_MODEL = "anthropic/claude-3.5-sonnet";

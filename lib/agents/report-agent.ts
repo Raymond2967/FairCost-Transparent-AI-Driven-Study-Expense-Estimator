@@ -1,6 +1,6 @@
 import { openRouterClient } from '../openrouter';
-import { UserInput, TuitionData, LivingCosts, OtherCosts, CostEstimateReport } from '@/types';
-import { calculateAnnualCost, calculateRange } from '../utils';
+import { UserInput, CostEstimateReport, TuitionData, LivingCosts, OtherCosts } from '@/types';
+import { REPORT_MODEL } from '../constants';
 
 export class ReportAgent {
   async generateReport(
@@ -10,242 +10,206 @@ export class ReportAgent {
     otherCosts: OtherCosts
   ): Promise<CostEstimateReport> {
     try {
-      // 计算费用总览
-      const summary = this.calculateSummary(tuition, livingCosts, otherCosts);
+      // 计算年度总费用
+      const totalAnnualCost = this.calculateTotalAnnualCost(tuition, livingCosts, otherCosts);
+      const totalMonthlyCost = this.calculateTotalMonthlyCost(livingCosts, otherCosts);
 
-      // 生成个性化建议
-      const recommendations = await this.generateRecommendations(userInput, summary);
+      // 收集所有来源
+      const sources = this.collectAllSources(tuition, livingCosts, otherCosts);
 
-      // 收集所有数据来源
-      const sources = this.collectSources(tuition, livingCosts, otherCosts);
-
-      const report: CostEstimateReport = {
+      return {
         userInput,
         tuition,
         livingCosts,
         otherCosts,
-        summary,
-        recommendations,
+        summary: {
+          totalAnnualCost,
+          totalMonthlyCost,
+          currency: tuition.currency,
+          breakdown: {
+            tuition: tuition.amount,
+            living: livingCosts.total.amount * 12,
+            other: (otherCosts.applicationFee?.amount || 0) + 
+                   (otherCosts.visaFee?.amount || 0) + 
+                   (otherCosts.healthInsurance?.amount || 0)
+          }
+        },
+        recommendations: this.generateRecommendations(userInput, { tuition, livingCosts, otherCosts }),
         generatedAt: new Date().toISOString(),
         sources
       };
 
-      return report;
-
     } catch (error) {
-      console.error('Report generation error:', error);
-      throw new Error('Failed to generate cost estimate report');
+      console.error('Report generation failed:', error);
+      throw new Error(`报告生成失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   }
 
-  private calculateSummary(
-    tuition: TuitionData,
-    livingCosts: LivingCosts,
-    otherCosts: OtherCosts
-  ) {
-    const currency = tuition.currency;
-
-    // 计算年度总费用
-    const annualTuition = tuition.amount;
-    const annualLiving = livingCosts.total.amount * 12;
-    const annualOther = otherCosts.applicationFee.amount + otherCosts.visaFee.amount +
-      (otherCosts.healthInsurance?.amount || 0);
-
-    const totalAnnual = annualTuition + annualLiving + annualOther;
-
-    // 计算月度费用
-    const monthlyTotal = livingCosts.total.amount + (annualTuition + annualOther) / 12;
-
-    return {
-      totalAnnualCost: {
-        amount: Math.round(totalAnnual),
-        range: calculateRange(totalAnnual, 0.2)
-      },
-      totalMonthlyCost: {
-        amount: Math.round(monthlyTotal),
-        range: calculateRange(monthlyTotal, 0.2)
-      },
-      currency,
-      breakdown: {
-        tuition: annualTuition,
-        living: annualLiving,
-        other: annualOther
-      }
-    };
-  }
-
-  private async generateRecommendations(
-    userInput: UserInput,
-    summary: any
-  ): Promise<string[]> {
-    try {
-      const prompt = `基于以下留学费用估算情况，为学生提供5-8个实用的省钱建议：
-
-用户信息：
-- 目标国家：${userInput.country}
-- 大学：${userInput.university}
-- 专业：${userInput.program}
-- 学位：${userInput.level}
-- 城市：${userInput.city}
-- 生活方式：${userInput.lifestyle}
-- 住宿偏好：${userInput.accommodation}
-
-费用总览：
-- 年度总费用：${summary.totalAnnualCost.amount} ${summary.currency}
-- 学费：${summary.breakdown.tuition} ${summary.currency}
-- 生活费：${summary.breakdown.living} ${summary.currency}
-- 其他费用：${summary.breakdown.other} ${summary.currency}
-
-请提供具体、可执行的建议，涵盖住宿、饮食、交通、学习用品等方面。`;
-
-      const response = await openRouterClient.chat({
-        model: 'openai/gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: '你是一位资深的留学财务规划师。请提供实用、具体的省钱建议。每条建议应该简洁明了，易于执行。'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7
-      });
-
-      // 解析建议内容
-      const lines = response.split('\n').filter(line => line.trim());
-      const recommendations = lines
-        .filter(line => line.match(/^\d+\./) || line.startsWith('•') || line.startsWith('-'))
-        .map(line => line.replace(/^\d+\.\s*/, '').replace(/^[•\-]\s*/, '').trim())
-        .filter(rec => rec.length > 10) // 过滤太短的建议
-        .slice(0, 8); // 最多8条建议
-
-      return recommendations.length > 0 ? recommendations : this.getDefaultRecommendations(userInput);
-
-    } catch (error) {
-      console.error('Recommendations generation failed:', error);
-      return this.getDefaultRecommendations(userInput);
-    }
-  }
-
-  private getDefaultRecommendations(userInput: UserInput): string[] {
-    const { country, accommodation, lifestyle } = userInput;
-
-    const recommendations = [];
-
-    // 住宿建议
-    if (accommodation === 'apartment') {
-      recommendations.push('考虑与室友合租公寓以降低住宿成本');
-    } else if (accommodation === 'dormitory') {
-      recommendations.push('学校宿舍通常包含水电费，是经济实惠的选择');
-    }
-
-    // 饮食建议
-    recommendations.push('自己做饭比在外就餐能节省60-70%的饮食费用');
-    recommendations.push('购买大包装食品和利用折扣优惠券可以有效降低食物支出');
-
-    // 交通建议
-    if (country === 'US') {
-      recommendations.push('购买月票或学生交通卡可以节省公共交通费用');
-    } else {
-      recommendations.push('澳大利亚的学生可享受公共交通折扣，记得申请学生卡');
-    }
-
-    // 学习用品建议
-    recommendations.push('购买二手教材或租借教材可以显著降低学习成本');
-    recommendations.push('充分利用图书馆的免费资源和学习空间');
-
-    // 娱乐建议
-    recommendations.push('参加学校组织的免费活动，既能社交又能节省娱乐费用');
-
-    // 兼职建议
-    recommendations.push('在学习许可范围内寻找兼职工作，可以补贴生活费用');
-
-    return recommendations.slice(0, 6);
-  }
-
-  private collectSources(
+  private collectAllSources(
     tuition: TuitionData,
     livingCosts: LivingCosts,
     otherCosts: OtherCosts
   ): string[] {
-    const sources = new Set<string>();
+    const sources: string[] = [];
 
     // 学费来源
-    sources.add(tuition.source);
+    sources.push(`学费数据来源: ${tuition.source} ${tuition.isEstimate ? '(估算)' : '(官方数据)'} ${tuition.confidence ? `(置信度: ${(tuition.confidence * 100).toFixed(0)}%)` : ''}`);
 
-    // 生活成本来源
-    livingCosts.sources.forEach(source => sources.add(source));
+    // 生活费来源
+    sources.push(...livingCosts.sources.map(source => `生活费用数据来源: ${source} ${livingCosts.confidence ? `(置信度: ${(livingCosts.confidence * 100).toFixed(0)}%)` : ''}`));
+
+    // 各项生活费用的详细来源
+    if (livingCosts.accommodation.source) {
+      sources.push(`住宿费用来源: ${livingCosts.accommodation.source}`);
+    }
+    if (livingCosts.food.source) {
+      sources.push(`餐饮费用来源: ${livingCosts.food.source}`);
+    }
+    if (livingCosts.transportation.source) {
+      sources.push(`交通费用来源: ${livingCosts.transportation.source}`);
+    }
+    if (livingCosts.utilities.source) {
+      sources.push(`水电费用来源: ${livingCosts.utilities.source}`);
+    }
+    if (livingCosts.entertainment.source) {
+      sources.push(`娱乐费用来源: ${livingCosts.entertainment.source}`);
+    }
+    if (livingCosts.miscellaneous.source) {
+      sources.push(`其他生活费用来源: ${livingCosts.miscellaneous.source}`);
+    }
 
     // 其他费用来源
-    sources.add(otherCosts.applicationFee.source);
-    sources.add(otherCosts.visaFee.source);
+    sources.push(`申请费用来源: ${otherCosts.applicationFee.source} ${otherCosts.applicationFee.confidence ? `(置信度: ${(otherCosts.applicationFee.confidence * 100).toFixed(0)}%)` : ''}`);
+    sources.push(`签证费用来源: ${otherCosts.visaFee.source} ${otherCosts.visaFee.confidence ? `(置信度: ${(otherCosts.visaFee.confidence * 100).toFixed(0)}%)` : ''}`);
+    
     if (otherCosts.healthInsurance) {
-      sources.add(otherCosts.healthInsurance.source);
+      sources.push(`健康保险费用来源: ${otherCosts.healthInsurance.source} ${otherCosts.healthInsurance.confidence ? `(置信度: ${(otherCosts.healthInsurance.confidence * 100).toFixed(0)}%)` : ''}`);
     }
 
-    return Array.from(sources).filter(source =>
-      source && source.length > 0 && source !== '内部估算'
-    );
+    // 去重并返回
+    return [...new Set(sources)];
   }
 
-  async enhanceReportWithInsights(
-    report: CostEstimateReport
-  ): Promise<CostEstimateReport> {
+  private async generateReportContent(reportData: any): Promise<string> {
     try {
-      // 可以添加更多深度分析
-      // 例如：与同类大学比较、市场趋势分析等
+      const prompt = `Based on the provided JSON data, generate a comprehensive study abroad cost estimation report in Markdown format. 
+      
+      JSON Data:
+      ${JSON.stringify(reportData, null, 2)}
 
-      const insights = await this.generateMarketInsights(report.userInput, report.summary);
-
-      return {
-        ...report,
-        recommendations: [...report.recommendations, ...insights]
-      };
-
-    } catch (error) {
-      console.error('Report enhancement failed:', error);
-      return report;
-    }
-  }
-
-  private async generateMarketInsights(
-    userInput: UserInput,
-    summary: any
-  ): Promise<string[]> {
-    try {
-      const prompt = `基于以下留学费用数据，提供2-3个市场洞察和趋势分析：
-
-目标：${userInput.university} ${userInput.program}
-年度总费用：${summary.totalAnnualCost.amount} ${summary.currency}
-
-请分析：
-1. 相比同类大学，这个费用水平如何？
-2. 未来1-2年的费用趋势预测
-3. 该地区/专业的就业前景对投资回报的影响`;
+      Please structure your report as follows:
+      1. Executive Summary - Overall cost overview
+      2. Cost Breakdown - Detailed breakdown of tuition, living, and other costs
+      3. Data Sources - List all sources with URLs
+      4. Personalized Recommendations - Tailored cost-saving suggestions based on user preferences
+      
+      Requirements:
+      - Use clear, concise language
+      - Include relevant emojis for better visual appeal
+      - Provide actionable recommendations
+      - Highlight data sources and confidence levels
+      - Format numbers as currency
+      - Use Markdown formatting for headings, lists, and emphasis
+      `;
 
       const response = await openRouterClient.chat({
-        model: 'openai/gpt-4o',
+        model: REPORT_MODEL, // 使用Claude模型生成报告
         messages: [
           {
             role: 'system',
-            content: '你是留学市场分析专家，提供基于数据的客观分析。'
+            content: 'You are a study abroad financial advisor. Generate comprehensive, well-structured reports in Markdown format based on the provided JSON data.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.5
+        temperature: 0.5,
+        max_tokens: 3000
       });
 
-      return response.split('\n')
-        .filter(line => line.trim().length > 20)
-        .slice(0, 3);
-
+      return response;
     } catch (error) {
-      return [];
+      console.error('Report content generation failed:', error);
+      return '# 费用估算报告\n\n由于系统错误，无法生成详细报告。请查看各费用项的估算结果。';
     }
+  }
+
+  private calculateTotalAnnualCost(
+    tuition: TuitionData,
+    livingCosts: LivingCosts,
+    otherCosts: OtherCosts
+  ) {
+    // 计算年度总费用
+    const livingAnnual = livingCosts.total.amount * 12;
+    const otherFees = (otherCosts.applicationFee?.amount || 0) + 
+                      (otherCosts.visaFee?.amount || 0) + 
+                      (otherCosts.healthInsurance?.amount || 0);
+
+    const totalAmount = tuition.amount + livingAnnual + otherFees;
+
+    return {
+      amount: Math.round(totalAmount),
+      range: {
+        min: Math.round(totalAmount * 0.9),
+        max: Math.round(totalAmount * 1.1)
+      }
+    };
+  }
+
+  private calculateTotalMonthlyCost(
+    livingCosts: LivingCosts,
+    otherCosts: OtherCosts
+  ) {
+    // 计算月度总费用（不包括学费）
+    const otherMonthly = ((otherCosts.applicationFee?.amount || 0) + 
+                         (otherCosts.visaFee?.amount || 0) + 
+                         (otherCosts.healthInsurance?.amount || 0)) / 12;
+
+    const totalAmount = livingCosts.total.amount + otherMonthly;
+
+    return {
+      amount: Math.round(totalAmount),
+      range: {
+        min: Math.round(totalAmount * 0.9),
+        max: Math.round(totalAmount * 1.1)
+      }
+    };
+  }
+
+  private generateRecommendations(userInput: UserInput, reportData: any): string[] {
+    const recommendations: string[] = [];
+
+    // 基于用户输入生成个性化建议
+    if (userInput.lifestyle === 'economy') {
+      recommendations.push('💰 您选择了经济型生活方式，建议自己做饭、使用公共交通，并寻找学生折扣');
+    } else if (userInput.lifestyle === 'comfortable') {
+      recommendations.push('🌟 您选择了舒适型生活方式，建议合理规划娱乐支出，避免过度消费');
+    }
+
+    if (userInput.accommodation === 'dormitory') {
+      recommendations.push('🏠 选择学校宿舍可以节省住宿费用，并有助于快速融入校园生活');
+    } else if (userInput.accommodation === 'apartment') {
+      recommendations.push('🏢 选择校外公寓提供了更多隐私和自由，但成本较高，建议与室友合租分摊费用');
+    }
+
+    // 基于数据生成建议
+    if (reportData.livingCosts.total.amount > 2000) {
+      recommendations.push('📈 您所在城市生活成本较高，建议制定详细的月度预算计划');
+    }
+
+    // 基于置信度的建议
+    if (reportData.tuition.confidence && reportData.tuition.confidence < 0.5) {
+      recommendations.push('⚠️ 学费数据为估算值，建议访问学校官网确认最新学费信息');
+    }
+
+    if (reportData.livingCosts.confidence && reportData.livingCosts.confidence < 0.5) {
+      recommendations.push('⚠️ 生活费用数据为估算值，建议参考多个来源进行确认');
+    }
+
+    recommendations.push('📚 建议提前申请奖学金或助学金以减轻学费负担');
+    recommendations.push('💳 考虑办理学生信用卡，积累信用记录并享受学生专属优惠');
+
+    return recommendations;
   }
 }
