@@ -155,12 +155,14 @@ export class TuitionAgent {
         confidence = 0.4;
       }
 
+      const source = estimatedData?.source_url || `内部估算基于${university}同类项目市场数据`;
+
       return {
         amount: estimatedData?.estimated_tuition || fallbackAmount,
         currency: currency as 'USD' | 'AUD',
         period: 'annual',
-        source: estimatedData?.source_url || `内部估算基于${university}同类项目市场数据`,
-        isEstimate: true,
+        source: source,
+        isEstimate: true, // 明确标识为估算数据
         lastUpdated: new Date().toISOString(),
         confidence: confidence
       };

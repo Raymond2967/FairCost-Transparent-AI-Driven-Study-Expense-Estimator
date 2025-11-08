@@ -75,6 +75,23 @@ export function extractDomain(url: string): string {
   }
 }
 
+// 确保URL有协议前缀
+export function ensureUrlProtocol(url: string): string {
+  if (!url) return '';
+  
+  try {
+    // 如果已经是完整URL，直接返回
+    new URL(url);
+    return url;
+  } catch {
+    // 如果不是完整URL，添加https协议
+    if (!url.startsWith('http')) {
+      return `https://${url}`;
+    }
+    return url;
+  }
+}
+
 // 格式化日期
 export function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
