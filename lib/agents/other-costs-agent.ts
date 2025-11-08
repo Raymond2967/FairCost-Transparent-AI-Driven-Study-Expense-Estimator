@@ -10,7 +10,7 @@ export class OtherCostsAgent {
     try {
       // 并行获取各种费用信息
       const [applicationFee, visaFee, healthInsurance] = await Promise.all([
-        this.getApplicationFee(university, level, country),
+        this.getApplicationFee(userInput), // 传递完整的userInput对象
         this.getVisaFee(country),
         this.getHealthInsurance(country, university)
       ]);
@@ -31,10 +31,10 @@ export class OtherCostsAgent {
   }
 
   private async getApplicationFee(
-    university: string,
-    level: 'undergraduate' | 'graduate',
-    country: 'US' | 'AU'
+    userInput: UserInput
   ): Promise<{ amount: number; source: string; confidence?: number }> {
+    const { university, level, program, country } = userInput;
+    
     try {
       // 获取大学官网信息
       const universityData = [...US_UNIVERSITIES, ...AU_UNIVERSITIES].find(
@@ -45,8 +45,8 @@ export class OtherCostsAgent {
         throw new Error('University not found');
       }
 
-      // 搜索申请费信息
-      const searchQuery = `${university} application fee ${level} ${new Date().getFullYear()} international students`;
+      // 构建更精确的搜索查询，包含专业领域信息
+      const searchQuery = `${university} ${program} application fee ${level} ${new Date().getFullYear()} international students`;
 
       // 使用gpt-4o-search-preview模型进行搜索
       const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
@@ -64,6 +64,19 @@ export class OtherCostsAgent {
           amount: extractedData.application_fee,
           source: this.validateUrl(extractedData.source_url) || universityData.website,
           confidence: extractedData.confidence
+        };
+      }
+
+      // 如果没有找到特定专业的申请费，尝试搜索通用申请费
+      const generalSearchQuery = `${university} general application fee ${level} ${new Date().getFullYear()} international students`;
+      const generalSearchResults = await safeLLMClient.safeSearch(generalSearchQuery, '数据暂时不可用', SEARCH_MODEL);
+      const generalExtractedData = await safeLLMClient.extractApplicationFee(generalSearchResults, fallbackData);
+
+      if (generalExtractedData && generalExtractedData.application_fee && generalExtractedData.confidence > 0.6) {
+        return {
+          amount: generalExtractedData.application_fee,
+          source: this.validateUrl(generalExtractedData.source_url) || universityData.website,
+          confidence: generalExtractedData.confidence
         };
       }
 
