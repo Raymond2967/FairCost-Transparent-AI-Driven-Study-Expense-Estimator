@@ -12,7 +12,7 @@ export class ReportAgent {
     try {
       // 计算年度总费用
       const totalAnnualCost = this.calculateTotalAnnualCost(tuition, livingCosts, otherCosts);
-      const totalMonthlyCost = this.calculateTotalMonthlyCost(livingCosts, otherCosts);
+      const totalMonthlyCost = this.calculateTotalMonthlyCost(tuition, livingCosts, otherCosts);
 
       // 收集所有来源
       const sources = this.collectAllSources(tuition, livingCosts, otherCosts);
@@ -161,10 +161,12 @@ export class ReportAgent {
   }
 
   private calculateTotalMonthlyCost(
+    tuition: TuitionData,
     livingCosts: LivingCosts,
     otherCosts: OtherCosts
   ) {
-    // 计算月度总费用（仅包含生活费和其他月度分摊费用，不包括学费）
+    // 计算月度总费用（包含学费的月度分摊、生活费和其他费用的月度分摊）
+    const tuitionMonthly = tuition.amount / 12;
     const otherFees = (otherCosts.applicationFee?.amount || 0) + 
                       (otherCosts.visaFee?.amount || 0) + 
                       (otherCosts.healthInsurance?.amount || 0);
@@ -172,8 +174,8 @@ export class ReportAgent {
     // 将其他费用分摊到12个月
     const otherMonthly = otherFees / 12;
     
-    // 月度费用 = 生活费 + 其他费用的月度分摊
-    const totalAmount = livingCosts.total.amount + otherMonthly;
+    // 月度费用 = 学费月度分摊 + 生活费 + 其他费用的月度分摊
+    const totalAmount = tuitionMonthly + livingCosts.total.amount + otherMonthly;
 
     return {
       amount: Math.round(totalAmount),
@@ -189,44 +191,46 @@ export class ReportAgent {
 
     // 基于用户输入生成个性化建议（避免给出用户已经选择的建议）
     if (userInput.lifestyle === 'economy') {
-      recommendations.push('💰 您选择了经济型生活方式，建议自己做饭、使用公共交通，并寻找学生折扣');
+      recommendations.push('💰 经济型生活方式优化');
     } else if (userInput.lifestyle === 'comfortable') {
-      recommendations.push('🌟 您选择了舒适型生活方式，建议合理规划娱乐支出，避免过度消费');
+      recommendations.push('🌟 舒适型生活方式优化');
+    } else {
+      recommendations.push('📊 标准型生活方式优化');
     }
 
     // 只有当用户没有选择宿舍时才给出宿舍建议
     if (userInput.accommodation !== 'dormitory') {
-      recommendations.push('🏠 考虑选择学校宿舍，通常比校外住宿更经济实惠，并有助于快速融入校园生活');
+      recommendations.push('🏠 住宿选择优化');
     }
     
     // 只有当用户没有选择公寓时才给出公寓建议
     if (userInput.accommodation !== 'apartment') {
-      recommendations.push('🏢 如果预算充足，可以选择校外公寓，提供更多隐私和自由');
+      recommendations.push('🏢 其他住宿选择');
     }
 
     // 基于数据生成建议
     if (reportData.livingCosts.total.amount > 2000) {
-      recommendations.push('📈 您所在城市生活成本较高，建议制定详细的月度预算计划');
+      recommendations.push('📈 高成本城市生活规划');
     }
 
     // 基于置信度的建议
     if (reportData.tuition.confidence && reportData.tuition.confidence < 0.5) {
-      recommendations.push('⚠️ 学费数据为估算值，建议访问学校官网确认最新学费信息');
+      recommendations.push('⚠️ 学费数据确认');
     }
 
     if (reportData.livingCosts.confidence && reportData.livingCosts.confidence < 0.5) {
-      recommendations.push('⚠️ 生活费用数据为估算值，建议参考多个来源进行确认');
+      recommendations.push('⚠️ 生活费数据确认');
     }
 
     // 如果没有健康保险数据，给出提醒
     if (!reportData.otherCosts.healthInsurance) {
-      recommendations.push('🏥 请注意购买合适的健康保险，这是留学的必要支出');
-    } else if (reportData.otherCosts.healthInsurance.amount > 1000) {
-      recommendations.push('🏥 健康保险费用较高，可以比较不同保险提供商的价格');
+      recommendations.push('🏥 健康保险规划');
+    } else if (reportData.otherCosts.healthInsurance && reportData.otherCosts.healthInsurance.amount > 1000) {
+      recommendations.push('🏥 高额保险费用优化');
     }
 
-    recommendations.push('📚 建议提前申请奖学金或助学金以减轻学费负担');
-    recommendations.push('🛒 在日常生活中寻找打折和优惠活动，有效控制支出');
+    recommendations.push('📚 奖学金申请策略');
+    recommendations.push('🛒 日常消费优化');
 
     return recommendations;
   }

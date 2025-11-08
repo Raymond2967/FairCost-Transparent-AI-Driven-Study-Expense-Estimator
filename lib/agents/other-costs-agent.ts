@@ -20,7 +20,7 @@ export class OtherCostsAgent {
       return {
         applicationFee,
         visaFee,
-        healthInsurance,
+        healthInsurance, // 如果为undefined，则不包含在最终报告中
         currency
       };
 
@@ -129,29 +129,33 @@ export class OtherCostsAgent {
     university: string
   ): Promise<{ amount: number; source: string; confidence?: number } | undefined> {
     try {
-      // 搜索健康保险费用
-      const searchQuery = `${university} ${country === 'US' ? 'health insurance' : 'OSHC'} international students ${new Date().getFullYear()}`;
+      // 搜索健康保险费用，仅搜索学校官方要求的保险
+      const searchQuery = `${university} ${country === 'US' ? 'health insurance requirement' : 'OSHC requirement'} international students ${new Date().getFullYear()} official`;
 
       // 使用gpt-4o-search-preview模型进行搜索
       const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
 
       const fallbackData = {
         insurance_fee: country === 'US' ? 2500 : 600,
-        source_url: 'https://www.healthcare.gov',
+        source_url: '',
         confidence: 0.5
       };
 
       const extractedData = await safeLLMClient.extractHealthInsurance(searchResults, fallbackData);
 
-      if (extractedData && extractedData.insurance_fee && extractedData.confidence > 0.6) {
-        return {
-          amount: extractedData.insurance_fee,
-          source: this.validateUrl(extractedData.source_url) || '健康保险提供商',
-          confidence: extractedData.confidence
-        };
+      // 只有当置信度较高且来源可靠时才返回数据
+      if (extractedData && extractedData.insurance_fee && extractedData.confidence > 0.7 && extractedData.source_url) {
+        const validatedUrl = this.validateUrl(extractedData.source_url);
+        if (validatedUrl) {
+          return {
+            amount: extractedData.insurance_fee,
+            source: validatedUrl,
+            confidence: extractedData.confidence
+          };
+        }
       }
 
-      // 如果没有找到可靠的保险数据，返回undefined
+      // 如果没有找到可靠的官方保险数据，返回undefined
       return undefined;
 
     } catch (error) {

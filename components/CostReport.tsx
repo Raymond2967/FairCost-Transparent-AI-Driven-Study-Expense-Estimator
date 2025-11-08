@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { CostEstimateReport } from '@/types';
 import { formatCurrency, formatCurrencyRange, formatDate, extractDomain, ensureUrlProtocol } from '@/lib/utils';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { openRouterClient } from '@/lib/openrouter';
 
 interface CostReportProps {
   report: CostEstimateReport;
@@ -15,13 +16,13 @@ interface DetailedRecommendation {
   title: string;
   description: string;
   details: string;
+  isLoading: boolean;
 }
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
 export default function CostReport({ report, onBack }: CostReportProps) {
   const { summary, tuition, livingCosts, otherCosts, userInput, recommendations, sources } = report;
-  const [expandedRecommendations, setExpandedRecommendations] = useState<Record<string, boolean>>({});
   const [detailedRecommendations, setDetailedRecommendations] = useState<Record<string, DetailedRecommendation>>({});
 
   // 准备饼图数据
@@ -70,78 +71,92 @@ export default function CostReport({ report, onBack }: CostReportProps) {
     alert('PDF下载功能将在后续版本中实现');
   };
 
-  const toggleRecommendation = async (index: number) => {
+  const getDetailedRecommendation = async (index: number) => {
     const recommendationId = `rec-${index}`;
     
-    // 如果已经展开，直接关闭
-    if (expandedRecommendations[recommendationId]) {
-      setExpandedRecommendations(prev => ({
-        ...prev,
-        [recommendationId]: false
-      }));
+    // 如果已经获取过详细信息且不是加载状态，直接返回
+    if (detailedRecommendations[recommendationId] && !detailedRecommendations[recommendationId].isLoading) {
       return;
     }
 
-    // 如果还没有详细信息，获取详细信息
-    if (!detailedRecommendations[recommendationId]) {
-      try {
-        // 构建更具体的提示词给AI
-        const detailedPrompt = `根据以下用户情况，为第${index + 1}个省钱建议提供更详细的说明：
-        用户情况：
-        - 学校：${userInput.university}
-        - 专业：${userInput.program}
-        - 学位：${userInput.level === 'undergraduate' ? '本科' : '硕士'}
-        - 生活方式：${userInput.lifestyle === 'economy' ? '经济型' : userInput.lifestyle === 'comfortable' ? '舒适型' : '标准型'}
-        - 住宿偏好：${userInput.accommodation === 'dormitory' ? '宿舍' : userInput.accommodation === 'apartment' ? '公寓' : '其他'}
-        
-        建议内容：${recommendations[index]}
-        
-        请提供：
-        1. 具体实施步骤
-        2. 预期节省金额范围
-        3. 注意事项
-        4. 相关资源链接（如果有）
-        
-        回复应为简洁明了的中文内容。`;
-
-        // 模拟获取详细建议的API调用（实际项目中这里会调用AI API）
-        const detailedInfo = {
-          id: recommendationId,
-          title: `建议 ${index + 1}`,
-          description: recommendations[index],
-          details: `根据您的具体情况（${userInput.university}的${userInput.program}专业，${userInput.level === 'undergraduate' ? '本科' : '硕士'}阶段，选择${userInput.lifestyle === 'economy' ? '经济型' : userInput.lifestyle === 'comfortable' ? '舒适型' : '标准型'}生活方式），我们为您提供以下详细建议：
-
-1. 具体实施步骤：
-   - 研究学校提供的学生服务和折扣
-   - 比较不同供应商的价格和服务
-   - 制定详细的预算计划
-
-2. 预期节省金额：
-   - 根据您的情况，预计每月可节省$100-$300
-
-3. 注意事项：
-   - 确保不降低生活质量
-   - 避免影响学习和社交活动
-
-4. 相关资源链接：
-   - 学校学生服务网站
-   - 当地学生折扣平台`
-        };
-
-        setDetailedRecommendations(prev => ({
-          ...prev,
-          [recommendationId]: detailedInfo
-        }));
-      } catch (error) {
-        console.error('Failed to fetch detailed recommendation:', error);
-      }
-    }
-
-    // 展开建议
-    setExpandedRecommendations(prev => ({
+    // 设置加载状态
+    setDetailedRecommendations(prev => ({
       ...prev,
-      [recommendationId]: true
+      [recommendationId]: {
+        id: recommendationId,
+        title: `建议详情`,
+        description: recommendations[index],
+        details: '',
+        isLoading: true
+      }
     }));
+
+    try {
+      // 构建提示词给AI生成详细建议
+      const prompt = `作为一名留学费用规划专家，请为以下建议方向提供详细说明：
+
+用户情况：
+- 学校：${userInput.university}
+- 专业：${userInput.program}
+- 学位：${userInput.level === 'undergraduate' ? '本科' : '硕士'}
+- 国家：${userInput.country}
+- 城市：${userInput.city || '未知'}
+- 生活方式：${userInput.lifestyle === 'economy' ? '经济型' : userInput.lifestyle === 'comfortable' ? '舒适型' : '标准型'}
+- 住宿偏好：${userInput.accommodation === 'dormitory' ? '宿舍' : userInput.accommodation === 'apartment' ? '公寓' : '其他'}
+
+建议方向：${recommendations[index]}
+
+请提供：
+1. 详细解释该建议的背景和重要性
+2. 具体实施步骤（3-5个步骤）
+3. 预期节省金额范围（如果适用）
+4. 注意事项和潜在风险
+5. 相关资源链接（如果有）
+
+请用中文回复，内容要具体、实用，避免空泛的建议。`;
+
+      // 调用AI生成详细建议
+      const response = await openRouterClient.chat({
+        model: 'openai/gpt-4o', // 使用指定模型
+        messages: [
+          {
+            role: 'system',
+            content: '你是一位专业的留学费用规划顾问，擅长为留学生提供个性化、实用的费用节省建议。'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      });
+
+      // 更新详细建议
+      setDetailedRecommendations(prev => ({
+        ...prev,
+        [recommendationId]: {
+          id: recommendationId,
+          title: `建议详情`,
+          description: recommendations[index],
+          details: response,
+          isLoading: false
+        }
+      }));
+    } catch (error) {
+      console.error('Failed to fetch detailed recommendation:', error);
+      // 错误处理
+      setDetailedRecommendations(prev => ({
+        ...prev,
+        [recommendationId]: {
+          id: recommendationId,
+          title: `建议详情`,
+          description: recommendations[index],
+          details: '获取详细建议时出现错误，请稍后重试。',
+          isLoading: false
+        }
+      }));
+    }
   };
 
   const handleBarClick = (data: any, index: number) => {
@@ -416,44 +431,40 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                 >
                   <div 
                     className="p-4 cursor-pointer"
-                    onClick={() => toggleRecommendation(index)}
+                    onClick={() => getDetailedRecommendation(index)}
                   >
                     <div className="flex justify-between items-start">
                       <p className="text-gray-800 flex-1">{recommendation}</p>
                       <span className="text-gray-500 text-sm ml-2">
-                        {isExpanded ? '收起' : '查看详情'}
+                        {detailedInfo ? (detailedInfo.isLoading ? '加载中...' : '查看详情') : '点击获取详细建议'}
                       </span>
                     </div>
                     
-                    {isExpanded && detailedInfo && (
+                    {detailedInfo && (
                       <div className="mt-4 pt-4 border-t border-gray-200">
-                        <h4 className="font-semibold text-gray-900 mb-2">{detailedInfo.title}</h4>
-                        <div className="text-gray-700 mb-3 whitespace-pre-line">{detailedInfo.details}</div>
-                        <div className="flex space-x-4">
-                          <button 
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // 这里可以添加获取更多详细信息的逻辑
-                              alert('获取更多详细信息');
-                            }}
-                          >
-                            获取更多详细信息 →
-                          </button>
-                          <button 
-                            className="text-gray-600 hover:text-gray-800 text-sm font-medium"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              // 收起详细信息
-                              setExpandedRecommendations(prev => ({
-                                ...prev,
-                                [recommendationId]: false
-                              }));
-                            }}
-                          >
-                            收起
-                          </button>
-                        </div>
+                        {detailedInfo.isLoading ? (
+                          <div className="flex items-center justify-center py-4">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-2"></div>
+                            <span>正在生成详细建议...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <h4 className="font-semibold text-gray-900 mb-2">{detailedInfo.title}</h4>
+                            <div className="text-gray-700 mb-3 whitespace-pre-line">{detailedInfo.details}</div>
+                            <button 
+                              className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // 移除详细信息
+                                const newDetailedRecommendations = { ...detailedRecommendations };
+                                delete newDetailedRecommendations[recommendationId];
+                                setDetailedRecommendations(newDetailedRecommendations);
+                              }}
+                            >
+                              收起
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
