@@ -24,6 +24,8 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 export default function CostReport({ report, onBack }: CostReportProps) {
   const { summary, tuition, livingCosts, otherCosts, userInput, recommendations, sources } = report;
   const [detailedRecommendations, setDetailedRecommendations] = useState<Record<string, DetailedRecommendation>>({});
+  const [showTuitionDetails, setShowTuitionDetails] = useState(false);
+  const [showLivingCostDetails, setShowLivingCostDetails] = useState(false);
 
   // 准备饼图数据
   const pieData = [
@@ -167,6 +169,20 @@ export default function CostReport({ report, onBack }: CostReportProps) {
     }
   };
 
+  // 计算最大开销项
+  const getMaxExpenseItem = () => {
+    const items = [
+      { name: '学费', value: summary.breakdown.tuition },
+      { name: '生活费', value: summary.breakdown.living },
+      { name: '其他费用', value: summary.breakdown.other }
+    ];
+    
+    return items.reduce((max, item) => item.value > max.value ? item : max);
+  };
+
+  const maxExpenseItem = getMaxExpenseItem();
+  const maxExpensePercentage = Math.round((maxExpenseItem.value / summary.totalAnnualCost.amount) * 100);
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* 头部操作 */}
@@ -186,67 +202,92 @@ export default function CostReport({ report, onBack }: CostReportProps) {
         </button>
       </div>
 
-      {/* 报告标题 */}
+      {/* 区块1: 报告身份区 */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">留学费用估算报告</h1>
-          <p className="text-lg text-gray-600">
-            {userInput.university} • {userInput.program} • {userInput.level === 'undergraduate' ? '本科' : '硕士'}
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {userInput.university} - {userInput.program} {userInput.level === 'undergraduate' ? '本科' : '硕士'}
+          </h1>
+          <p className="text-lg text-gray-600 mb-4">留学费用估算报告</p>
+          
+          <div className="flex flex-wrap justify-center gap-2">
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              {userInput.country === 'US' ? '🇺🇸 美国' : '🇦🇺 澳大利亚'}
+            </span>
+            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+              {userInput.level === 'undergraduate' ? '🎓 本科' : '🎓 硕士'}
+            </span>
+            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+              {userInput.lifestyle === 'economy' ? '💰 经济型消费' : userInput.lifestyle === 'comfortable' ? '💰 舒适型消费' : '💰 标准型消费'}
+            </span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+              {userInput.accommodation === 'dormitory' ? '🏠 校内宿舍' : '🏠 校外合租'}
+            </span>
+          </div>
+          
+          <p className="text-sm text-gray-500 mt-4">
             报告生成时间：{formatDate(new Date(report.generatedAt))}
           </p>
         </div>
       </div>
 
-      {/* 费用总览 */}
+      {/* 区块2: 核心指标区 */}
       <div className="bg-white rounded-lg shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">费用总览</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-blue-50 rounded-lg p-4 text-center">
-            <h3 className="text-lg font-semibold text-blue-800 mb-2">年度总费用</h3>
-            <p className="text-3xl font-bold text-blue-900">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* 年度总估算费用 */}
+          <div className="border border-gray-200 rounded-lg p-6 text-center">
+            <p className="text-gray-600 mb-2">年度总估算费用</p>
+            <p className="text-4xl font-bold text-gray-900 mb-2">
               {formatCurrency(summary.totalAnnualCost.amount, summary.currency)}
             </p>
-            <p className="text-sm text-blue-700 mt-1">
-              {formatCurrencyRange(summary.totalAnnualCost.range.min, summary.totalAnnualCost.range.max, summary.currency)}
+            <p className="text-gray-600 text-sm">
+              估算范围: {formatCurrencyRange(summary.totalAnnualCost.range.min, summary.totalAnnualCost.range.max, summary.currency)}
             </p>
+            <div className="mt-4 flex justify-center">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-800">
+                💰
+              </span>
+            </div>
           </div>
 
-          <div className="bg-green-50 rounded-lg p-4 text-center">
-            <h3 className="text-lg font-semibold text-green-800 mb-2">月度费用</h3>
-            <p className="text-2xl font-bold text-green-900">
+          {/* 月度平均支出 */}
+          <div className="border border-gray-200 rounded-lg p-6 text-center">
+            <p className="text-gray-600 mb-2">月度平均支出</p>
+            <p className="text-3xl font-bold text-gray-900 mb-2">
               {formatCurrency(summary.totalMonthlyCost.amount, summary.currency)}
             </p>
-            <p className="text-sm text-green-700 mt-1">
-              {formatCurrencyRange(summary.totalMonthlyCost.range.min, summary.totalMonthlyCost.range.max, summary.currency)}
+            <p className="text-gray-600 text-sm">
+              估算范围: {formatCurrencyRange(summary.totalMonthlyCost.range.min, summary.totalMonthlyCost.range.max, summary.currency)}
             </p>
+            <div className="mt-4 flex justify-center">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-800">
+                👛
+              </span>
+            </div>
           </div>
 
-          <div className="bg-yellow-50 rounded-lg p-4 text-center">
-            <h3 className="text-lg font-semibold text-yellow-800 mb-2">学费</h3>
-            <p className="text-2xl font-bold text-yellow-900">
-              {formatCurrency(tuition.amount, tuition.currency)}
+          {/* 费用洞察 */}
+          <div className="border border-gray-200 rounded-lg p-6 text-center">
+            <p className="text-gray-600 mb-2">最大开销</p>
+            <p className="text-3xl font-bold text-gray-900 mb-2">
+              {maxExpenseItem.name}
             </p>
-            <p className="text-sm text-yellow-700 mt-1">
-              {tuition.period === 'annual' ? '年度' : '学期'}
+            <p className="text-gray-600 text-sm">
+              占总花费 {maxExpensePercentage}%
             </p>
-          </div>
-
-          <div className="bg-purple-50 rounded-lg p-4 text-center">
-            <h3 className="text-lg font-semibold text-purple-800 mb-2">生活费(月)</h3>
-            <p className="text-2xl font-bold text-purple-900">
-              {formatCurrency(livingCosts.total.amount, livingCosts.currency)}
-            </p>
-            <p className="text-sm text-purple-700 mt-1">
-              {formatCurrencyRange(livingCosts.total.range.min, livingCosts.total.range.max, livingCosts.currency)}
-            </p>
+            <div className="mt-4 flex justify-center">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-800">
+                🎓
+              </span>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* 费用分布饼图 */}
+      {/* 区块3: 费用构成区 */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* 年度费用分布饼图 */}
           <div>
             <h3 className="text-xl font-semibold text-gray-900 mb-4">年度费用分布</h3>
             <ResponsiveContainer width="100%" height={300}>
@@ -267,10 +308,14 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                 <Tooltip formatter={(value) => formatCurrency(Number(value), summary.currency)} />
               </PieChart>
             </ResponsiveContainer>
+            <p className="text-gray-600 text-sm mt-2 text-center">
+              "我的钱主要用在学费还是生活上？"
+            </p>
           </div>
 
+          {/* 月度生活费构成条形图 */}
           <div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">生活费明细 (月度)</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">您的月度生活费都花在哪？</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={barData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -285,327 +330,274 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                 />
               </BarChart>
             </ResponsiveContainer>
+            <p className="text-gray-600 text-sm mt-2 text-center">
+              "在我的生活费里，哪项最贵？每一项的预算浮动空间有多大？"
+            </p>
           </div>
         </div>
       </div>
 
-      {/* 详细费用明细 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* 学费详情 */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">学费详情</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-gray-600">项目学费</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(tuition.amount, tuition.currency)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">计费周期</span>
-              <span className="text-gray-900">{tuition.period === 'annual' ? '年度' : '学期'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">数据来源</span>
-              {tuition.source ? (
-                <a
-                  href={ensureUrlProtocol(tuition.source)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline text-sm font-medium"
-                >
-                  {extractDomain(tuition.source) || tuition.source}
-                </a>
-              ) : (
-                <span className="text-gray-500 text-sm">无来源信息</span>
-              )}
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">数据状态</span>
-              <span className={tuition.isEstimate ? 'text-yellow-600 font-medium' : 'text-green-600 font-medium'}>
-                {tuition.isEstimate ? '估算数据' : '官方数据'}
-                {tuition.confidence && (
-                  <span className="text-xs ml-1">
-                    (置信度: {(tuition.confidence * 100).toFixed(0)}%)
-                  </span>
-                )}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* 其他费用详情 */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">其他费用</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between">
-              <span className="text-gray-600">申请费</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(otherCosts.applicationFee.amount, otherCosts.currency)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">签证费</span>
-              <span className="font-semibold text-gray-900">{formatCurrency(otherCosts.visaFee.amount, otherCosts.currency)}</span>
-            </div>
-            {otherCosts.healthInsurance ? (
-              <div className="flex justify-between">
-                <span className="text-gray-600">健康保险</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(otherCosts.healthInsurance.amount, otherCosts.currency)}</span>
-              </div>
-            ) : (
-              <div className="flex justify-between">
-                <span className="text-gray-600">健康保险</span>
-                <span className="font-semibold text-gray-500">无数据</span>
-              </div>
-            )}
-            <div className="pt-2 border-t border-gray-200">
-              <div className="flex justify-between">
-                <span className="text-gray-600">申请费来源</span>
-                {otherCosts.applicationFee.source ? (
-                  <a
-                    href={ensureUrlProtocol(otherCosts.applicationFee.source)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm font-medium"
-                  >
-                    {extractDomain(otherCosts.applicationFee.source) || otherCosts.applicationFee.source}
-                  </a>
-                ) : (
-                  <span className="text-gray-500 text-sm">无来源信息</span>
-                )}
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">签证费来源</span>
-                {otherCosts.visaFee.source ? (
-                  <a
-                    href={ensureUrlProtocol(otherCosts.visaFee.source)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm font-medium"
-                  >
-                    {extractDomain(otherCosts.visaFee.source) || otherCosts.visaFee.source}
-                  </a>
-                ) : (
-                  <span className="text-gray-500 text-sm">无来源信息</span>
-                )}
-              </div>
-              {otherCosts.healthInsurance && otherCosts.healthInsurance.source ? (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">保险费来源</span>
-                  <a
-                    href={ensureUrlProtocol(otherCosts.healthInsurance.source)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm font-medium"
-                  >
-                    {extractDomain(otherCosts.healthInsurance.source) || otherCosts.healthInsurance.source}
-                  </a>
-                </div>
-              ) : otherCosts.healthInsurance ? (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">保险费来源</span>
-                  <span className="text-gray-500 text-sm">无来源信息</span>
-                </div>
-              ) : (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">保险费来源</span>
-                  <span className="text-gray-500 text-sm">无保险数据</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 生活费用明细 */}
+      {/* 区块4: 数据明细区 */}
       <div className="bg-white rounded-lg shadow-lg p-6">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">生活费用明细</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">住宿费用</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">月度费用</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.accommodation.amount, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">费用范围</span>
-                <span className="text-gray-700">{formatCurrencyRange(livingCosts.accommodation.range.min, livingCosts.accommodation.range.max, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">住宿类型</span>
-                <span className="text-gray-700">
-                  {livingCosts.accommodation.type === 'dormitory' ? '宿舍' : 
-                   livingCosts.accommodation.type === 'shared' ? '合租' : 
-                   livingCosts.accommodation.type === 'studio' ? '单间' : '公寓'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">数据来源</span>
-                {livingCosts.accommodation.source ? (
-                  <a
-                    href={ensureUrlProtocol(livingCosts.accommodation.source)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    {extractDomain(livingCosts.accommodation.source) || livingCosts.accommodation.source}
-                  </a>
-                ) : (
-                  <span className="text-gray-500 text-sm">无来源信息</span>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">数据明细</h2>
+        
+        {/* 学费与一次性费用表格 */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">学费与一次性费用</h3>
+            <button 
+              onClick={() => setShowTuitionDetails(!showTuitionDetails)}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              {showTuitionDetails ? '收起详情' : '查看详情'}
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">费用项目</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注 / 数据来源</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">项目学费</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(tuition.amount, tuition.currency)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {tuition.period === 'annual' ? '年度费用' : tuition.period === 'semester' ? '学期费用' : '学分费用'}
+                  </td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">申请费</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(otherCosts.applicationFee.amount, otherCosts.currency)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {otherCosts.applicationFee.source ? (
+                      <a 
+                        href={ensureUrlProtocol(otherCosts.applicationFee.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(otherCosts.applicationFee.source) || otherCosts.applicationFee.source}
+                      </a>
+                    ) : '无来源信息'}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">签证费</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(otherCosts.visaFee.amount, otherCosts.currency)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {otherCosts.visaFee.source ? (
+                      <a 
+                        href={ensureUrlProtocol(otherCosts.visaFee.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(otherCosts.visaFee.source) || otherCosts.visaFee.source}
+                      </a>
+                    ) : '无来源信息'}
+                  </td>
+                </tr>
+                {otherCosts.healthInsurance && (
+                  <tr className="bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">健康保险</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(otherCosts.healthInsurance.amount, otherCosts.currency)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {otherCosts.healthInsurance.source ? (
+                        <a 
+                          href={ensureUrlProtocol(otherCosts.healthInsurance.source)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          {extractDomain(otherCosts.healthInsurance.source) || otherCosts.healthInsurance.source}
+                        </a>
+                      ) : '无来源信息'}
+                    </td>
+                  </tr>
                 )}
+                <tr className="bg-gray-100 font-semibold">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">小计</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrency(
+                      tuition.amount + 
+                      otherCosts.applicationFee.amount + 
+                      otherCosts.visaFee.amount + 
+                      (otherCosts.healthInsurance?.amount || 0),
+                      summary.currency
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          {showTuitionDetails && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">学费详情</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600">数据状态</p>
+                  <p className={tuition.isEstimate ? 'text-yellow-600' : 'text-green-600'}>
+                    {tuition.isEstimate ? '估算数据' : '官方数据'}
+                    {tuition.confidence && (
+                      <span className="ml-1">
+                        (置信度: {(tuition.confidence * 100).toFixed(0)}%)
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600">数据来源</p>
+                  <p>
+                    {tuition.source ? (
+                      <a 
+                        href={ensureUrlProtocol(tuition.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(tuition.source) || tuition.source}
+                      </a>
+                    ) : '无来源信息'}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+        </div>
 
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">饮食费用</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">月度费用</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.food.amount, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">费用范围</span>
-                <span className="text-gray-700">{formatCurrencyRange(livingCosts.food.range.min, livingCosts.food.range.max, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">数据来源</span>
-                {livingCosts.food.source ? (
-                  <a
-                    href={ensureUrlProtocol(livingCosts.food.source)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    {extractDomain(livingCosts.food.source) || livingCosts.food.source}
-                  </a>
-                ) : (
-                  <span className="text-gray-500 text-sm">无来源信息</span>
-                )}
+        {/* 月度生活费明细表格 */}
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">月度生活费明细</h3>
+            <button 
+              onClick={() => setShowLivingCostDetails(!showLivingCostDetails)}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              {showLivingCostDetails ? '收起详情' : '查看详情'}
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类别</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">估算范围</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注 / 依据</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">住宿</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrencyRange(livingCosts.accommodation.range.min, livingCosts.accommodation.range.max, livingCosts.currency)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {livingCosts.accommodation.type === 'dormitory' ? '校内宿舍' : 
+                     livingCosts.accommodation.type === 'shared' ? '校外合租' : 
+                     livingCosts.accommodation.type === 'studio' ? '单间公寓' : '其他住宿'}
+                  </td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">饮食</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrencyRange(livingCosts.food.range.min, livingCosts.food.range.max, livingCosts.currency)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {userInput.lifestyle === 'economy' ? '经济型饮食' : 
+                     userInput.lifestyle === 'comfortable' ? '舒适型饮食' : '标准型饮食'}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">交通</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrencyRange(livingCosts.transportation.range.min, livingCosts.transportation.range.max, livingCosts.currency)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {userInput.transportation === 'walking' ? '步行为主' : 
+                     userInput.transportation === 'public' ? '公共交通' : 
+                     userInput.transportation === 'bike' ? '自行车' : '私家车'}
+                  </td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">水电</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrencyRange(livingCosts.utilities.range.min, livingCosts.utilities.range.max, livingCosts.currency)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">基础水电费用</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">娱乐</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrencyRange(livingCosts.entertainment.range.min, livingCosts.entertainment.range.max, livingCosts.currency)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {userInput.lifestyle === 'economy' ? '低频娱乐' : 
+                     userInput.lifestyle === 'comfortable' ? '高频娱乐' : '中等娱乐'}
+                  </td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">其他</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrencyRange(livingCosts.miscellaneous.range.min, livingCosts.miscellaneous.range.max, livingCosts.currency)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">日用品等其他费用</td>
+                </tr>
+                <tr className="bg-gray-100 font-semibold">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">月度总计</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrencyRange(livingCosts.total.range.min, livingCosts.total.range.max, livingCosts.currency)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          {showLivingCostDetails && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">生活费详情</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600">数据置信度</p>
+                  <p>{livingCosts.confidence ? `${(livingCosts.confidence * 100).toFixed(0)}%` : '无数据'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600">主要数据来源</p>
+                  <p>
+                    {livingCosts.sources && livingCosts.sources.length > 0 ? (
+                      <a 
+                        href={ensureUrlProtocol(livingCosts.sources[0])} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(livingCosts.sources[0]) || livingCosts.sources[0]}
+                      </a>
+                    ) : '无来源信息'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600">城市</p>
+                  <p>{userInput.city}, {userInput.country === 'US' ? '美国' : '澳大利亚'}</p>
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">交通费用</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">月度费用</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.transportation.amount, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">费用范围</span>
-                <span className="text-gray-700">{formatCurrencyRange(livingCosts.transportation.range.min, livingCosts.transportation.range.max, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">数据来源</span>
-                {livingCosts.transportation.source ? (
-                  <a
-                    href={ensureUrlProtocol(livingCosts.transportation.source)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    {extractDomain(livingCosts.transportation.source) || livingCosts.transportation.source}
-                  </a>
-                ) : (
-                  <span className="text-gray-500 text-sm">无来源信息</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">水电费用</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">月度费用</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.utilities.amount, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">费用范围</span>
-                <span className="text-gray-700">{formatCurrencyRange(livingCosts.utilities.range.min, livingCosts.utilities.range.max, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">数据来源</span>
-                {livingCosts.utilities.source ? (
-                  <a
-                    href={ensureUrlProtocol(livingCosts.utilities.source)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    {extractDomain(livingCosts.utilities.source) || livingCosts.utilities.source}
-                  </a>
-                ) : (
-                  <span className="text-gray-500 text-sm">无来源信息</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">娱乐费用</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">月度费用</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.entertainment.amount, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">费用范围</span>
-                <span className="text-gray-700">{formatCurrencyRange(livingCosts.entertainment.range.min, livingCosts.entertainment.range.max, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">数据来源</span>
-                {livingCosts.entertainment.source ? (
-                  <a
-                    href={ensureUrlProtocol(livingCosts.entertainment.source)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    {extractDomain(livingCosts.entertainment.source) || livingCosts.entertainment.source}
-                  </a>
-                ) : (
-                  <span className="text-gray-500 text-sm">无来源信息</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-2">其他费用</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">月度费用</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(livingCosts.miscellaneous.amount, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">费用范围</span>
-                <span className="text-gray-700">{formatCurrencyRange(livingCosts.miscellaneous.range.min, livingCosts.miscellaneous.range.max, livingCosts.currency)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">数据来源</span>
-                {livingCosts.miscellaneous.source ? (
-                  <a
-                    href={ensureUrlProtocol(livingCosts.miscellaneous.source)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    {extractDomain(livingCosts.miscellaneous.source) || livingCosts.miscellaneous.source}
-                  </a>
-                ) : (
-                  <span className="text-gray-500 text-sm">无来源信息</span>
-                )}
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* 个性化建议 */}
+      {/* 区块5: 行动建议区 */}
       {recommendations.length > 0 && (
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">个性化省钱建议</h3>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">为您的财务规划建言</h2>
           <div className="grid grid-cols-1 gap-4">
             {recommendations.map((recommendation, index) => {
               const recommendationId = `rec-${index}`;
