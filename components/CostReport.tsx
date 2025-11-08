@@ -353,7 +353,8 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">费用项目</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注 / 数据来源</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">数据来源</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -363,10 +364,25 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {tuition.period === 'annual' ? '年度费用' : tuition.period === 'semester' ? '学期费用' : '学分费用'}
                   </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {tuition.source ? (
+                      <a 
+                        href={ensureUrlProtocol(tuition.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(tuition.source) || tuition.source}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">无来源信息</span>
+                    )}
+                  </td>
                 </tr>
                 <tr className="bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">申请费</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(otherCosts.applicationFee.amount, otherCosts.currency)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500"></td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {otherCosts.applicationFee.source ? (
                       <a 
@@ -377,12 +393,15 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                       >
                         {extractDomain(otherCosts.applicationFee.source) || otherCosts.applicationFee.source}
                       </a>
-                    ) : '无来源信息'}
+                    ) : (
+                      <span className="text-gray-500">无来源信息</span>
+                    )}
                   </td>
                 </tr>
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">签证费</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(otherCosts.visaFee.amount, otherCosts.currency)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500"></td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {otherCosts.visaFee.source ? (
                       <a 
@@ -393,13 +412,16 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                       >
                         {extractDomain(otherCosts.visaFee.source) || otherCosts.visaFee.source}
                       </a>
-                    ) : '无来源信息'}
+                    ) : (
+                      <span className="text-gray-500">无来源信息</span>
+                    )}
                   </td>
                 </tr>
                 {otherCosts.healthInsurance && (
                   <tr className="bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">健康保险</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(otherCosts.healthInsurance.amount, otherCosts.currency)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500"></td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {otherCosts.healthInsurance.source ? (
                         <a 
@@ -410,7 +432,9 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                         >
                           {extractDomain(otherCosts.healthInsurance.source) || otherCosts.healthInsurance.source}
                         </a>
-                      ) : '无来源信息'}
+                      ) : (
+                        <span className="text-gray-500">无来源信息</span>
+                      )}
                     </td>
                   </tr>
                 )}
@@ -425,6 +449,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                       summary.currency
                     )}
                   </td>
+                  <td className="px-6 py-4 text-sm text-gray-500"></td>
                   <td className="px-6 py-4 text-sm text-gray-500"></td>
                 </tr>
               </tbody>
@@ -484,7 +509,8 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类别</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">估算范围</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注 / 依据</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">数据来源</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -497,17 +523,19 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                     {livingCosts.accommodation.type === 'dormitory' ? '校内宿舍' : 
                      livingCosts.accommodation.type === 'shared' ? '校外合租' : 
                      livingCosts.accommodation.type === 'studio' ? '单间公寓' : '其他住宿'}
-                    {livingCosts.accommodation.source && (
-                      <div className="mt-1">
-                        <a 
-                          href={ensureUrlProtocol(livingCosts.accommodation.source)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-xs"
-                        >
-                          数据来源: {extractDomain(livingCosts.accommodation.source)}
-                        </a>
-                      </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {livingCosts.accommodation.source ? (
+                      <a 
+                        href={ensureUrlProtocol(livingCosts.accommodation.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(livingCosts.accommodation.source)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">无来源信息</span>
                     )}
                   </td>
                 </tr>
@@ -519,17 +547,19 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {userInput.lifestyle === 'economy' ? '经济型饮食' : 
                      userInput.lifestyle === 'comfortable' ? '舒适型饮食' : '标准型饮食'}
-                    {livingCosts.food.source && (
-                      <div className="mt-1">
-                        <a 
-                          href={ensureUrlProtocol(livingCosts.food.source)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-xs"
-                        >
-                          数据来源: {extractDomain(livingCosts.food.source)}
-                        </a>
-                      </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {livingCosts.food.source ? (
+                      <a 
+                        href={ensureUrlProtocol(livingCosts.food.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(livingCosts.food.source)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">无来源信息</span>
                     )}
                   </td>
                 </tr>
@@ -542,17 +572,19 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                     {userInput.transportation === 'walking' ? '步行为主' : 
                      userInput.transportation === 'public' ? '公共交通' : 
                      userInput.transportation === 'bike' ? '自行车' : '私家车'}
-                    {livingCosts.transportation.source && (
-                      <div className="mt-1">
-                        <a 
-                          href={ensureUrlProtocol(livingCosts.transportation.source)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-xs"
-                        >
-                          数据来源: {extractDomain(livingCosts.transportation.source)}
-                        </a>
-                      </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {livingCosts.transportation.source ? (
+                      <a 
+                        href={ensureUrlProtocol(livingCosts.transportation.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(livingCosts.transportation.source)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">无来源信息</span>
                     )}
                   </td>
                 </tr>
@@ -561,18 +593,19 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrencyRange(livingCosts.utilities.range.min, livingCosts.utilities.range.max, livingCosts.currency)}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">基础水电费用
-                    {livingCosts.utilities.source && (
-                      <div className="mt-1">
-                        <a 
-                          href={ensureUrlProtocol(livingCosts.utilities.source)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-xs"
-                        >
-                          数据来源: {extractDomain(livingCosts.utilities.source)}
-                        </a>
-                      </div>
+                  <td className="px-6 py-4 text-sm text-gray-500">基础水电费用</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {livingCosts.utilities.source ? (
+                      <a 
+                        href={ensureUrlProtocol(livingCosts.utilities.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(livingCosts.utilities.source)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">无来源信息</span>
                     )}
                   </td>
                 </tr>
@@ -584,17 +617,19 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {userInput.lifestyle === 'economy' ? '低频娱乐' : 
                      userInput.lifestyle === 'comfortable' ? '高频娱乐' : '中等娱乐'}
-                    {livingCosts.entertainment.source && (
-                      <div className="mt-1">
-                        <a 
-                          href={ensureUrlProtocol(livingCosts.entertainment.source)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-xs"
-                        >
-                          数据来源: {extractDomain(livingCosts.entertainment.source)}
-                        </a>
-                      </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {livingCosts.entertainment.source ? (
+                      <a 
+                        href={ensureUrlProtocol(livingCosts.entertainment.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(livingCosts.entertainment.source)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">无来源信息</span>
                     )}
                   </td>
                 </tr>
@@ -603,18 +638,19 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrencyRange(livingCosts.miscellaneous.range.min, livingCosts.miscellaneous.range.max, livingCosts.currency)}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">日用品等其他费用
-                    {livingCosts.miscellaneous.source && (
-                      <div className="mt-1">
-                        <a 
-                          href={ensureUrlProtocol(livingCosts.miscellaneous.source)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-xs"
-                        >
-                          数据来源: {extractDomain(livingCosts.miscellaneous.source)}
-                        </a>
-                      </div>
+                  <td className="px-6 py-4 text-sm text-gray-500">日用品等其他费用</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {livingCosts.miscellaneous.source ? (
+                      <a 
+                        href={ensureUrlProtocol(livingCosts.miscellaneous.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(livingCosts.miscellaneous.source)}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">无来源信息</span>
                     )}
                   </td>
                 </tr>
@@ -623,6 +659,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrencyRange(livingCosts.total.range.min, livingCosts.total.range.max, livingCosts.currency)}
                   </td>
+                  <td className="px-6 py-4 text-sm text-gray-500"></td>
                   <td className="px-6 py-4 text-sm text-gray-500"></td>
                 </tr>
               </tbody>
