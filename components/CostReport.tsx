@@ -23,9 +23,10 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
 export default function CostReport({ report, onBack }: CostReportProps) {
   const { summary, tuition, livingCosts, otherCosts, userInput, recommendations, sources } = report;
-  const [detailedRecommendations, setDetailedRecommendations] = useState<Record<string, DetailedRecommendation>>({});
   const [showTuitionDetails, setShowTuitionDetails] = useState(false);
   const [showLivingCostDetails, setShowLivingCostDetails] = useState(false);
+  const [showOtherCostsDetails, setShowOtherCostsDetails] = useState(false);
+  const [detailedRecommendations, setDetailedRecommendations] = useState<{[key: string]: DetailedRecommendation}>({});
 
   // 准备饼图数据
   const pieData = [
@@ -351,10 +352,10 @@ export default function CostReport({ report, onBack }: CostReportProps) {
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">数据明细</h2>
         
-        {/* 学费与一次性费用表格 */}
+        {/* 学费明细表格 */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">学费与一次性费用</h3>
+            <h3 className="text-lg font-semibold text-gray-900">学费明细</h3>
             <button 
               onClick={() => setShowTuitionDetails(!showTuitionDetails)}
               className="text-blue-600 hover:text-blue-800 text-sm font-medium"
@@ -369,7 +370,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">费用项目</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">收费模式</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">数据来源</th>
                 </tr>
               </thead>
@@ -395,6 +396,68 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                     )}
                   </td>
                 </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          {showTuitionDetails && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">学费详情</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-600">数据状态</p>
+                  <p className={tuition.isEstimate ? 'text-yellow-600' : 'text-green-600'}>
+                    {tuition.isEstimate ? '估算数据' : '官方数据'}
+                    {tuition.confidence && (
+                      <span className="ml-1">
+                        (置信度: {(tuition.confidence * 100).toFixed(0)}%)
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-600">数据来源</p>
+                  <p>
+                    {tuition.source ? (
+                      <a 
+                        href={ensureUrlProtocol(tuition.source)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(tuition.source) || tuition.source}
+                      </a>
+                    ) : '无来源信息'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 一次性费用明细表格 */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">一次性费用明细</h3>
+            <button 
+              onClick={() => setShowOtherCostsDetails(!showOtherCostsDetails)}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              {showOtherCostsDetails ? '收起详情' : '查看详情'}
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">费用项目</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">备注</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">数据来源</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
                 <tr className="bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">申请费</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(otherCosts.applicationFee.amount, otherCosts.currency)}</td>
@@ -458,11 +521,10 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">小计</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrency(
-                      tuition.amount + 
                       otherCosts.applicationFee.amount + 
                       otherCosts.visaFee.amount + 
                       (otherCosts.healthInsurance?.amount || 0),
-                      summary.currency
+                      otherCosts.currency
                     )}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500"></td>
@@ -472,34 +534,19 @@ export default function CostReport({ report, onBack }: CostReportProps) {
             </table>
           </div>
           
-          {showTuitionDetails && (
+          {showOtherCostsDetails && (
             <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <h4 className="font-medium text-gray-900 mb-2">学费详情</h4>
+              <h4 className="font-medium text-gray-900 mb-2">一次性费用详情</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-gray-600">数据状态</p>
-                  <p className={tuition.isEstimate ? 'text-yellow-600' : 'text-green-600'}>
-                    {tuition.isEstimate ? '估算数据' : '官方数据'}
-                    {tuition.confidence && (
-                      <span className="ml-1">
-                        (置信度: {(tuition.confidence * 100).toFixed(0)}%)
-                      </span>
-                    )}
-                  </p>
+                  <p className="text-gray-600">费用说明</p>
+                  <p className="text-gray-900">这些费用通常只需支付一次，不包含在年度或学期费用中</p>
                 </div>
                 <div>
-                  <p className="text-gray-600">数据来源</p>
-                  <p>
-                    {tuition.source ? (
-                      <a 
-                        href={ensureUrlProtocol(tuition.source)} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {extractDomain(tuition.source) || tuition.source}
-                      </a>
-                    ) : '无来源信息'}
+                  <p className="text-gray-600">数据置信度</p>
+                  <p className="text-gray-900">
+                    {otherCosts.applicationFee.confidence ? `申请费: ${(otherCosts.applicationFee.confidence * 100).toFixed(0)}%` : ''}
+                    {otherCosts.visaFee.confidence ? ` 签证费: ${(otherCosts.visaFee.confidence * 100).toFixed(0)}%` : ''}
                   </p>
                 </div>
               </div>

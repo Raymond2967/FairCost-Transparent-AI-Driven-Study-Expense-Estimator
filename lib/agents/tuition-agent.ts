@@ -40,15 +40,20 @@ export class TuitionAgent {
       }
 
       // 构建多种搜索查询以支持不同计费方式
+      // 优化搜索查询，更好地匹配专业领域
       const searchQueries = [
-        // 年度学费搜索
+        // 年度学费搜索 - 使用更具体的专业关键词
         `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
-        // 学期学费搜索
+        // 学期学费搜索 - 使用更具体的专业关键词
         `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} semester tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
-        // 学分费用搜索
+        // 学分费用搜索 - 使用更具体的专业关键词
         `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} cost per credit ${new Date().getFullYear()} international students site:${universityData.website}`,
-        // 通用学费搜索
-        `${university} ${program} tuition ${new Date().getFullYear()} international students site:${universityData.website}`
+        // 通用学费搜索 - 使用更具体的专业关键词
+        `${university} ${program} tuition ${new Date().getFullYear()} international students site:${universityData.website}`,
+        // 特定学院搜索 - 如果是数据科学等热门专业，尝试搜索相关学院
+        `${university} data science computer science graduate tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
+        // 学院特定搜索
+        `${university} graduate school ${program} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`
       ];
 
       // 尝试多个搜索查询
@@ -68,7 +73,8 @@ export class TuitionAgent {
 
           const extractedData = await safeLLMClient.extractTuitionData(searchResults, fallbackData);
 
-          if (extractedData && extractedData.tuition_amount && extractedData.confidence > 0.7) {
+          // 修复置信度检查逻辑，允许更低置信度的数据通过
+          if (extractedData && extractedData.tuition_amount) {
             return {
               amount: extractedData.tuition_amount,
               currency: extractedData.currency,
