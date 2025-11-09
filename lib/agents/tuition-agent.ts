@@ -39,25 +39,70 @@ export class TuitionAgent {
         throw new Error('University not found in database');
       }
 
+      // 根据用户输入的专业构建更智能的搜索查询
+      // 创建专业相关的关键词映射
+      const programKeywords: { [key: string]: string[] } = {
+        'Data Science': ['data science', 'computer science', 'data analytics', 'statistics', 'machine learning'],
+        'Computer Science': ['computer science', 'cs', 'software engineering', 'programming'],
+        'Business': ['business', 'mba', 'management', 'commerce'],
+        'Engineering': ['engineering', 'mechanical', 'electrical', 'civil'],
+        'Medicine': ['medicine', 'medical', 'health sciences'],
+        'Law': ['law', 'legal', 'jurisprudence'],
+        'Economics': ['economics', 'economic', 'finance'],
+        'Psychology': ['psychology', 'psychological', 'behavioral sciences']
+      };
+
+      // 获取专业相关关键词
+      const keywords = programKeywords[program] || [program.toLowerCase()];
+      
       // 构建多种搜索查询以支持不同计费方式
-      // 优化搜索查询，更好地匹配专业领域
       const searchQueries = [
-        // 年度学费搜索 - 使用更具体的专业关键词
+        // 直接使用用户输入的专业名称
         `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
-        // 学期学费搜索 - 使用更具体的专业关键词
+        
+        // 使用专业相关关键词
+        ...keywords.map(keyword => 
+          `${university} ${keyword} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`
+        ),
+        
+        // 学期学费搜索
         `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} semester tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
-        // 学分费用搜索 - 使用更具体的专业关键词
+        
+        // 使用专业相关关键词的学期学费搜索
+        ...keywords.map(keyword => 
+          `${university} ${keyword} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} semester tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`
+        ),
+        
+        // 学分费用搜索
         `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} cost per credit ${new Date().getFullYear()} international students site:${universityData.website}`,
-        // 通用学费搜索 - 使用更具体的专业关键词
+        
+        // 使用专业相关关键词的学分费用搜索
+        ...keywords.map(keyword => 
+          `${university} ${keyword} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} cost per credit ${new Date().getFullYear()} international students site:${universityData.website}`
+        ),
+        
+        // 通用学费搜索
         `${university} ${program} tuition ${new Date().getFullYear()} international students site:${universityData.website}`,
-        // 特定学院搜索 - 如果是数据科学等热门专业，尝试搜索相关学院
-        `${university} data science computer science graduate tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
-        // 学院特定搜索
-        `${university} graduate school ${program} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`
+        
+        // 使用专业相关关键词的通用学费搜索
+        ...keywords.map(keyword => 
+          `${university} ${keyword} tuition ${new Date().getFullYear()} international students site:${universityData.website}`
+        ),
+        
+        // 特定学院搜索
+        `${university} graduate school ${program} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
+        
+        // 使用专业相关关键词的学院搜索
+        ...keywords.map(keyword => 
+          `${university} graduate school ${keyword} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`
+        )
       ];
 
+      // 去重搜索查询
+      const uniqueSearchQueries = [...new Set(searchQueries)];
+
       // 尝试多个搜索查询
-      for (const searchQuery of searchQueries) {
+      for (const searchQuery of uniqueSearchQueries) {
         try {
           // 使用gpt-4o-search-preview模型进行搜索
           const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
