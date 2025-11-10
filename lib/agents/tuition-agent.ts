@@ -8,16 +8,19 @@ export class TuitionAgent {
     const { country, university, program, level } = userInput;
 
     try {
-      // 首先尝试从官方网站获取准确学费信息
-      const officialData = await this.getOfficialTuition(userInput);
+      // 直接从常量中获取大学网站信息，不依赖programs字段
+      const universityData = [...US_UNIVERSITIES, ...AU_UNIVERSITIES].find(
+        uni => uni.name === university
+      );
 
-      if (officialData) {
-        return officialData;
+      if (!universityData) {
+        throw new Error(`University not found in database: ${university}`);
       }
 
-      // 如果官方数据获取失败，使用估算方法
-      console.log('Official tuition data not found, using estimation');
-      return await this.estimateTuition(university, program, level, country);
+      // 使用智能搜索和推理获取学费信息
+      const tuitionData = await this.getIntelligentTuitionAnalysis(userInput, universityData.website);
+
+      return tuitionData;
 
     } catch (error) {
       console.error('Tuition query error:', error);
@@ -26,120 +29,106 @@ export class TuitionAgent {
     }
   }
 
-  private async getOfficialTuition(userInput: UserInput): Promise<TuitionData | null> {
+  private async getIntelligentTuitionAnalysis(
+    userInput: UserInput, 
+    universityWebsite: string
+  ): Promise<TuitionData> {
     const { university, program, level, country } = userInput;
     
     try {
-      // 获取大学官网信息
-      const universityData = [...US_UNIVERSITIES, ...AU_UNIVERSITIES].find(
-        uni => uni.name === university
+      // 构建智能分析提示词
+      const analysisPrompt = `You are a tuition fee analysis expert. Your task is to find and calculate the tuition fees for a specific university program.
+      
+      University: ${university}
+      Program: ${program}
+      Level: ${level === 'undergraduate' ? 'Undergraduate/Bachelor' : 'Graduate/Master'}
+      Country: ${country}
+      University Website: ${universityWebsite}
+      Current Year: ${new Date().getFullYear()}
+
+      Please follow these steps:
+      1. Search for the most accurate tuition fee information for this specific program
+      2. Identify the billing structure (credit-based, semester-based, or annual)
+      3. If credit-based, find the cost per credit and typical credit requirements
+      4. If semester-based, find the cost per semester and program duration in semesters
+      5. If annual, find the annual cost and program duration in years
+      6. Calculate the total program tuition cost
+      7. Evaluate the reliability of the information source
+      8. Provide the information in the exact JSON format specified below
+
+      Return ONLY a JSON object with this exact structure:
+      {
+        "amount": 45000,
+        "currency": "${country === 'US' ? 'USD' : 'AUD'}",
+        "period": "annual",
+        "source": "https://official-university-source.com/tuition-page",
+        "isEstimate": false,
+        "lastUpdated": "2025-01-15T10:30:00.000Z",
+        "confidence": 0.95,
+        "billingStructure": "credit-based",
+        "programDuration": "2 years",
+        "calculationNotes": "Based on X credits at Y per credit",
+        "alternativeSources": [
+          "https://alternative-source-1.com",
+          "https://alternative-source-2.com"
+        ]
+      }
+
+      Important guidelines:
+      - Use only official university sources when possible
+      - If you must estimate, set "isEstimate" to true and lower the confidence score
+      - Ensure the source URL is specific to the program if possible
+      - For confidence: official sources = 0.9-1.0, educational databases = 0.7-0.9, estimates = 0.6 or below
+      - Always include the calculation method you used
+      `;
+
+      // 使用搜索模型进行智能分析
+      const analysisResponse = await openRouterClient.chat({
+        model: SEARCH_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a precise data extraction and calculation expert. Always respond with valid JSON in the exact format specified.'
+          },
+          {
+            role: 'user',
+            content: analysisPrompt
+          }
+        ],
+        temperature: 0.1 // 低温度确保更一致的输出
+      });
+
+      // 提取结构化数据
+      const tuitionData = await openRouterClient.extractStructuredData(
+        analysisResponse,
+        `{
+          "amount": 45000,
+          "currency": "${country === 'US' ? 'USD' : 'AUD'}",
+          "period": "annual",
+          "source": "https://official-university-source.com/tuition-page",
+          "isEstimate": false,
+          "lastUpdated": "2025-01-15T10:30:00.000Z",
+          "confidence": 0.95,
+          "billingStructure": "credit-based",
+          "programDuration": "2 years",
+          "calculationNotes": "Based on X credits at Y per credit"
+        }`
       );
 
-      if (!universityData) {
-        throw new Error('University not found in database');
-      }
-
-      // 根据用户输入的专业构建更智能的搜索查询
-      // 创建专业相关的关键词映射
-      const programKeywords: { [key: string]: string[] } = {
-        'Data Science': ['data science', 'computer science', 'data analytics', 'statistics', 'machine learning'],
-        'Computer Science': ['computer science', 'cs', 'software engineering', 'programming'],
-        'Business': ['business', 'mba', 'management', 'commerce'],
-        'Engineering': ['engineering', 'mechanical', 'electrical', 'civil'],
-        'Medicine': ['medicine', 'medical', 'health sciences'],
-        'Law': ['law', 'legal', 'jurisprudence'],
-        'Economics': ['economics', 'economic', 'finance'],
-        'Psychology': ['psychology', 'psychological', 'behavioral sciences']
+      // 验证和清理数据
+      return {
+        amount: tuitionData.amount,
+        currency: tuitionData.currency,
+        period: tuitionData.period,
+        source: tuitionData.source,
+        isEstimate: tuitionData.isEstimate,
+        lastUpdated: tuitionData.lastUpdated || new Date().toISOString(),
+        confidence: tuitionData.confidence
       };
 
-      // 获取专业相关关键词
-      const keywords = programKeywords[program] || [program.toLowerCase()];
-      
-      // 构建多种搜索查询以支持不同计费方式
-      const searchQueries = [
-        // 直接使用用户输入的专业名称
-        `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
-        
-        // 使用专业相关关键词
-        ...keywords.map(keyword => 
-          `${university} ${keyword} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`
-        ),
-        
-        // 学期学费搜索
-        `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} semester tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
-        
-        // 使用专业相关关键词的学期学费搜索
-        ...keywords.map(keyword => 
-          `${university} ${keyword} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} semester tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`
-        ),
-        
-        // 学分费用搜索
-        `${university} ${program} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} cost per credit ${new Date().getFullYear()} international students site:${universityData.website}`,
-        
-        // 使用专业相关关键词的学分费用搜索
-        ...keywords.map(keyword => 
-          `${university} ${keyword} ${level === 'undergraduate' ? 'undergraduate bachelor' : 'graduate master'} cost per credit ${new Date().getFullYear()} international students site:${universityData.website}`
-        ),
-        
-        // 通用学费搜索
-        `${university} ${program} tuition ${new Date().getFullYear()} international students site:${universityData.website}`,
-        
-        // 使用专业相关关键词的通用学费搜索
-        ...keywords.map(keyword => 
-          `${university} ${keyword} tuition ${new Date().getFullYear()} international students site:${universityData.website}`
-        ),
-        
-        // 特定学院搜索
-        `${university} graduate school ${program} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`,
-        
-        // 使用专业相关关键词的学院搜索
-        ...keywords.map(keyword => 
-          `${university} graduate school ${keyword} tuition fees ${new Date().getFullYear()} international students site:${universityData.website}`
-        )
-      ];
-
-      // 去重搜索查询
-      const uniqueSearchQueries = [...new Set(searchQueries)];
-
-      // 尝试多个搜索查询
-      for (const searchQuery of uniqueSearchQueries) {
-        try {
-          // 使用gpt-4o-search-preview模型进行搜索
-          const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
-
-          const fallbackData = {
-            tuition_amount: country === 'US' ? 50000 : 45000,
-            currency: country === 'US' ? 'USD' : 'AUD',
-            period: 'annual',
-            source_url: universityData.website,
-            is_estimate: true,
-            confidence: 0.5
-          };
-
-          const extractedData = await safeLLMClient.extractTuitionData(searchResults, fallbackData);
-
-          // 修复置信度检查逻辑，允许更低置信度的数据通过
-          if (extractedData && extractedData.tuition_amount) {
-            return {
-              amount: extractedData.tuition_amount,
-              currency: extractedData.currency,
-              period: extractedData.period,
-              source: extractedData.source_url || universityData.website,
-              isEstimate: extractedData.is_estimate || false,
-              lastUpdated: new Date().toISOString(),
-              confidence: extractedData.confidence
-            };
-          }
-        } catch (searchError) {
-          console.log(`Search query failed: ${searchQuery}`, searchError);
-          continue; // 尝试下一个搜索查询
-        }
-      }
-
-      return null;
     } catch (error) {
-      console.error('Official tuition search failed:', error);
-      return null;
+      console.error('Intelligent tuition analysis failed:', error);
+      throw error;
     }
   }
 
