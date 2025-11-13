@@ -39,6 +39,10 @@ export class TuitionAgent {
       // 构建智能分析提示词
       const analysisPrompt = `You are a tuition fee analysis expert. Your task is to find and calculate the EXACT TOTAL tuition fees for a specific university program from official sources.
       
+      CRITICAL INSTRUCTION: Pay EXTREMELY careful attention to the program level. 
+      Many universities have DIFFERENT tuition fees for undergraduate and graduate programs, even for programs with the same name.
+      You MUST find the fees for the CORRECT program level specified below.
+      
       University: ${university}
       Program: ${program}
       Level: ${level === 'undergraduate' ? 'Undergraduate/Bachelor' : 'Graduate/Master'}
@@ -47,7 +51,7 @@ export class TuitionAgent {
       Current Year: ${new Date().getFullYear()}
 
       Instructions:
-      1. Search for the most accurate and up-to-date tuition fee information for this specific program
+      1. Search for the most accurate and up-to-date tuition fee information for this specific program at the specified level
       2. Locate official university documents like tuition fee schedules, handbooks, or PDFs
       3. Extract the EXACT figures from these official sources
       4. If the program has multiple fee types, select the one most relevant to international students
@@ -67,6 +71,8 @@ export class TuitionAgent {
       - NEVER invent or estimate tuition fees
       - ALWAYS return the TOTAL program cost, not per-credit, per-semester, or per-year costs
       - ALWAYS determine and return the program duration in years
+      - CRITICAL: Make sure the program level matches EXACTLY what was requested (Undergraduate/Bachelor vs Graduate/Master)
+      - If you find fees for the wrong program level, continue searching until you find the correct level
 
       Return ONLY a JSON object with this exact structure:
       {
@@ -92,7 +98,7 @@ export class TuitionAgent {
         messages: [
           {
             role: 'system',
-            content: 'You are a precise data extraction and calculation expert. Always respond with valid JSON in the exact format specified. Accuracy is critical - do not invent or estimate numbers. You must return the TOTAL program cost and program duration.'
+            content: 'You are a precise data extraction and calculation expert. Always respond with valid JSON in the exact format specified. Accuracy is critical - do not invent or estimate numbers. You must return the TOTAL program cost and program duration. Pay EXTREMELY careful attention to ensuring the program level (Undergraduate vs Graduate/Master) matches exactly what was requested. If you accidentally find data for the wrong level, you must continue searching until you find the correct level.'
           },
           {
             role: 'user',
