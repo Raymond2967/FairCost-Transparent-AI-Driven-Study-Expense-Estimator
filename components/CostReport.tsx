@@ -371,7 +371,6 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">费用项目</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">项目时长</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">收费模式</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">数据来源</th>
                 </tr>
               </thead>
@@ -381,11 +380,6 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(tuition.amount, tuition.currency)}</td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {tuition.programDuration ? `${tuition.programDuration}年` : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {tuition.paymentMode === 'annual' ? '按年收取' : 
-                     tuition.paymentMode === 'semester' ? '按学期收取' : 
-                     tuition.paymentMode === 'quarter' ? '按季度收取' : '一次性收取'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {tuition.source ? (
