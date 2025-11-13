@@ -147,31 +147,14 @@ export class ReportAgent {
     otherCosts: OtherCosts,
     programDuration: number
   ) {
-    // 计算整个学习期间的总费用
-    let tuitionTotal = 0;
+    // 使用学费代理返回的项目时长，如果不可用则使用用户输入的时长
+    const actualProgramDuration = tuition.programDuration || programDuration;
     
-    // 根据学费计费方式计算总学费
-    switch (tuition.period) {
-      case 'annual':
-        // 年度计费
-        tuitionTotal = tuition.amount * programDuration;
-        break;
-      case 'semester':
-        // 学期计费（假设一年2个学期）
-        tuitionTotal = tuition.amount * programDuration * 2;
-        break;
-      case 'credit':
-        // 学分计费（假设硕士40学分/年，本科120学分/年）
-        const creditsPerYear = programDuration <= 1 ? 40 : 120;
-        tuitionTotal = tuition.amount * creditsPerYear * programDuration;
-        break;
-      default:
-        // 默认按年度计费
-        tuitionTotal = tuition.amount * programDuration;
-    }
-
-    // 生活费（按年计算）
-    const livingTotal = livingCosts.total.amount * 12 * programDuration;
+    // 学费已经是总费用，不需要额外计算
+    const tuitionTotal = tuition.amount;
+    
+    // 生活费（按年计算）× 项目时长
+    const livingTotal = livingCosts.total.amount * 12 * actualProgramDuration;
     
     // 其他费用（一次性费用只计算一次）
     const otherFees = (otherCosts.applicationFee?.amount || 0) + 
@@ -186,7 +169,7 @@ export class ReportAgent {
         min: Math.round(totalAmount * 0.9),
         max: Math.round(totalAmount * 1.1)
       },
-      duration: programDuration
+      duration: actualProgramDuration
     };
   }
 
