@@ -182,7 +182,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
   };
 
   const maxExpenseItem = getMaxExpenseItem();
-  const maxExpensePercentage = Math.round((maxExpenseItem.value / summary.totalAnnualCost.amount) * 100);
+  const maxExpensePercentage = Math.round((maxExpenseItem.value / summary.totalCost.amount) * 100);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
