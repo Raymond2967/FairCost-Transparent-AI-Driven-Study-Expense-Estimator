@@ -13,8 +13,15 @@ export class ReportAgent {
       // 计算年度总费用
       const totalAnnualCost = this.calculateTotalAnnualCost(tuition, livingCosts, otherCosts);
       const totalMonthlyCost = this.calculateTotalMonthlyCost(tuition, livingCosts, otherCosts);
-      // 计算总费用（考虑学费计费方式）
-      const totalCost = this.calculateTotalCost(tuition, livingCosts, otherCosts, userInput.programDuration || 2);
+      // 计算总费用（学费代理已返回总费用，直接使用）
+      const totalCost = {
+        amount: tuition.total,
+        range: {
+          min: Math.round(tuition.total * 0.9),
+          max: Math.round(tuition.total * 1.1)
+        },
+        duration: tuition.programDuration
+      };
 
       // 收集所有来源
       const sources = this.collectAllSources(tuition, livingCosts, otherCosts);
@@ -30,7 +37,7 @@ export class ReportAgent {
           totalCost,
           currency: tuition.currency,
           breakdown: {
-            tuition: tuition.amount,
+            tuition: tuition.total,
             living: livingCosts.total.amount * 12,
             other: (otherCosts.applicationFee?.amount || 0) + 
                    (otherCosts.visaFee?.amount || 0) + 
@@ -151,7 +158,7 @@ export class ReportAgent {
     const actualProgramDuration = tuition.programDuration || programDuration;
     
     // 学费已经是总费用，不需要额外计算
-    const tuitionTotal = tuition.amount;
+    const tuitionTotal = tuition.total;
     
     // 生活费（按年计算）× 项目时长
     const livingTotal = livingCosts.total.amount * 12 * actualProgramDuration;
@@ -181,7 +188,10 @@ export class ReportAgent {
     // 计算年度总费用（不包含一次性费用）
     const livingAnnual = livingCosts.total.amount * 12;
     
-    const totalAmount = tuition.amount + livingAnnual;
+    // 学费代理返回的是整个项目的总费用，需要计算年度学费
+    const tuitionAnnual = tuition.total / tuition.programDuration;
+    
+    const totalAmount = tuitionAnnual + livingAnnual;
 
     return {
       amount: Math.round(totalAmount),
@@ -198,7 +208,7 @@ export class ReportAgent {
     otherCosts: OtherCosts
   ) {
     // 计算月度总费用（包含学费的月度分摊、生活费和其他费用的月度分摊）
-    const tuitionMonthly = tuition.amount / 12;
+    const tuitionMonthly = tuition.total / 12;
     const otherFees = (otherCosts.applicationFee?.amount || 0) + 
                       (otherCosts.visaFee?.amount || 0) + 
                       (otherCosts.healthInsurance?.amount || 0);

@@ -76,9 +76,8 @@ export class TuitionAgent {
 
       Return ONLY a JSON object with this exact structure:
       {
-        "amount": 90000,
+        "total": 90000,
         "currency": "${country === 'US' ? 'USD' : 'AUD'}",
-        "period": "total",
         "source": "https://official-university-source.com/tuition-page",
         "isEstimate": false,
         "lastUpdated": "2025-01-15T10:30:00.000Z",
@@ -112,9 +111,8 @@ export class TuitionAgent {
       const tuitionData = await openRouterClient.extractStructuredData(
         analysisResponse,
         `{
-          "amount": 90000,
+          "total": 90000,
           "currency": "${country === 'US' ? 'USD' : 'AUD'}",
-          "period": "total",
           "source": "https://official-university-source.com/tuition-page",
           "isEstimate": false,
           "lastUpdated": "2025-01-15T10:30:00.000Z",
@@ -125,9 +123,8 @@ export class TuitionAgent {
 
       // 验证和清理数据
       return {
-        amount: tuitionData.amount,
+        total: tuitionData.total,
         currency: tuitionData.currency,
-        period: tuitionData.period,
         source: tuitionData.source,
         isEstimate: tuitionData.isEstimate,
         lastUpdated: tuitionData.lastUpdated || new Date().toISOString(),
@@ -185,8 +182,7 @@ export class TuitionAgent {
       const extractionSchema = `{
         "estimated_tuition": 90000,
         "currency": "USD",
-        "period": "total",
-        "program_duration": 2,
+        "programDuration": 2,
         "reasoning": "Based on similar programs at comparable institutions",
         "confidence_level": "medium",
         "source_url": "https://university.edu"
@@ -227,14 +223,13 @@ export class TuitionAgent {
       const source = estimatedData?.source_url || `内部估算基于${university}同类项目市场数据`;
 
       return {
-        amount: estimatedData?.estimated_tuition || fallbackAmount,
+        total: estimatedData?.estimated_tuition || fallbackAmount,
         currency: currency as 'USD' | 'AUD',
-        period: 'total',
         source: source,
         isEstimate: true,
         lastUpdated: new Date().toISOString(),
         confidence: confidence,
-        programDuration: estimatedData?.program_duration || fallbackDuration
+        programDuration: estimatedData?.programDuration || fallbackDuration
       };
 
     } catch (error) {
@@ -249,9 +244,8 @@ export class TuitionAgent {
       const levelData = emergency_estimates[country][level];
 
       return {
-        amount: levelData.amount,
+        total: levelData.amount,
         currency: country === 'US' ? 'USD' : 'AUD',
-        period: 'total',
         source: '基于市场平均数据的紧急估算',
         isEstimate: true,
         lastUpdated: new Date().toISOString(),
