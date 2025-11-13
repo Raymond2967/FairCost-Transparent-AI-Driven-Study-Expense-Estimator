@@ -377,7 +377,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">项目总学费</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(tuition.amount, tuition.currency)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(tuition.total, tuition.currency)}</td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {tuition.programDuration ? `${tuition.programDuration}年` : 'N/A'}
                   </td>
@@ -408,27 +408,17 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <p className="text-gray-600">数据状态</p>
                   <p className={tuition.isEstimate ? 'text-yellow-600' : 'text-green-600'}>
                     {tuition.isEstimate ? '估算数据' : '官方数据'}
-                    {tuition.confidence && (
-                      <span className="ml-1">
-                        (置信度: {(tuition.confidence * 100).toFixed(0)}%)
-                      </span>
-                    )}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-600">数据来源</p>
-                  <p>
-                    {tuition.source ? (
-                      <a 
-                        href={ensureUrlProtocol(tuition.source)} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {extractDomain(tuition.source) || tuition.source}
-                      </a>
-                    ) : '无来源信息'}
+                  <p className="text-gray-600">置信度</p>
+                  <p className="text-gray-900">
+                    {tuition.confidence ? `${(tuition.confidence * 100).toFixed(0)}%` : 'N/A'}
                   </p>
+                </div>
+                <div>
+                  <p className="text-gray-600">最后更新</p>
+                  <p className="text-gray-900">{tuition.lastUpdated ? formatDate(new Date(tuition.lastUpdated)) : 'N/A'}</p>
                 </div>
               </div>
             </div>
@@ -521,10 +511,11 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">小计</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrency(
+                      tuition.total + 
                       otherCosts.applicationFee.amount + 
                       otherCosts.visaFee.amount + 
                       (otherCosts.healthInsurance?.amount || 0),
-                      otherCosts.currency
+                      summary.currency
                     )}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500"></td>
@@ -777,7 +768,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
               <strong>总花费</strong> = 项目总学费 + 生活费总额 + 一次性费用
             </p>
             <p className="mb-2">
-              计算公式：{formatCurrency(tuition.amount, summary.currency)} (项目总学费) + 
+              计算公式：{formatCurrency(tuition.total, summary.currency)} (项目总学费) + 
               {formatCurrency(livingCosts.total.amount, summary.currency)} × 12 × {summary.totalCost.duration} (生活费总额) + 
               {formatCurrency(summary.breakdown.other, summary.currency)} (一次性费用) = 
               {formatCurrency(summary.totalCost.amount, summary.currency)}
