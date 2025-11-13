@@ -1,5 +1,5 @@
 import { openRouterClient } from '../openrouter';
-import { UserInput, CostEstimateReport, TuitionData, LivingCosts, OtherCosts } from '@/types';
+import { UserInput, TuitionData, LivingCosts, OtherCosts, CostEstimateReport } from '@/types';
 import { REPORT_MODEL } from '../constants';
 
 export class ReportAgent {
@@ -18,7 +18,28 @@ export class ReportAgent {
       const totalCost = this.calculateTotalCost(tuition, livingCosts, otherCosts, programDuration);
 
       // 生成个性化建议
-      const recommendations = await this.generateRecommendations(userInput, { tuition, livingCosts, otherCosts });
+      const recommendations = await this.generateRecommendations(userInput, {
+        userInput,
+        tuition,
+        livingCosts,
+        otherCosts,
+        summary: {
+          totalAnnualCost,
+          totalMonthlyCost,
+          totalCost: { ...totalCost, duration: programDuration },
+          currency: tuition.currency,
+          breakdown: {
+            tuition: tuition.total,
+            living: livingCosts.total.amount * 12,
+            other: (otherCosts.applicationFee?.amount || 0) +
+                   (otherCosts.visaFee?.amount || 0) +
+                   (otherCosts.healthInsurance?.amount || 0)
+          }
+        },
+        recommendations: [],
+        generatedAt: new Date().toISOString(),
+        sources: []
+      });
 
       // 收集所有来源
       const sources = this.collectAllSources(tuition, livingCosts, otherCosts);
@@ -31,7 +52,7 @@ export class ReportAgent {
         summary: {
           totalAnnualCost,
           totalMonthlyCost,
-          totalCost,
+          totalCost: { ...totalCost, duration: programDuration },
           currency: tuition.currency,
           breakdown: {
             tuition: tuition.total,
@@ -52,119 +73,25 @@ export class ReportAgent {
     }
   }
 
-  private collectAllSources(
-    tuition: TuitionData,
-    livingCosts: LivingCosts,
-    otherCosts: OtherCosts
-  ): string[] {
-    const sources: string[] = [];
-
-    // 学费来源
-    sources.push(`学费数据来源: ${tuition.source} ${tuition.isEstimate ? '(估算)' : '(官方数据)'} ${tuition.confidence ? `(置信度: ${(tuition.confidence * 100).toFixed(0)}%)` : ''}`);
-
-    // 生活费来源
-    sources.push(...livingCosts.sources.map(source => `生活费用数据来源: ${source} ${livingCosts.confidence ? `(置信度: ${(livingCosts.confidence * 100).toFixed(0)}%)` : ''}`));
-
-    // 各项生活费用的详细来源
-    if (livingCosts.accommodation.source) {
-      sources.push(`住宿费用来源: ${livingCosts.accommodation.source}`);
-    }
-    if (livingCosts.food.source) {
-      sources.push(`餐饮费用来源: ${livingCosts.food.source}`);
-    }
-    if (livingCosts.transportation.source) {
-      sources.push(`交通费用来源: ${livingCosts.transportation.source}`);
-    }
-    if (livingCosts.utilities.source) {
-      sources.push(`水电费用来源: ${livingCosts.utilities.source}`);
-    }
-    if (livingCosts.entertainment.source) {
-      sources.push(`娱乐费用来源: ${livingCosts.entertainment.source}`);
-    }
-    if (livingCosts.miscellaneous.source) {
-      sources.push(`其他费用来源: ${livingCosts.miscellaneous.source}`);
-    }
-
-    // 其他费用来源
-    if (otherCosts.applicationFee?.source) {
-      sources.push(`申请费用来源: ${otherCosts.applicationFee.source}`);
-    }
-    if (otherCosts.visaFee?.source) {
-      sources.push(`签证费用来源: ${otherCosts.visaFee.source}`);
-    }
-    if (otherCosts.healthInsurance?.source) {
-      sources.push(`健康保险费用来源: ${otherCosts.healthInsurance.source}`);
-    }
-
-    return sources;
-  }
-
-  private extractDurationInYears(programDuration: string | number): number {
-    // 如果已经是数字，直接返回
-    if (typeof programDuration === 'number') {
-      return programDuration;
-    }
-    
-    // 从字符串中提取年数，如"2年" -> 2, "18个月" -> 1.5
-    const yearMatch = programDuration.match(/(\d+(?:\.\d+)?)\s*年/);
-    if (yearMatch) {
-      return parseFloat(yearMatch[1]);
-    }
-
-    const monthMatch = programDuration.match(/(\d+(?:\.\d+)?)\s*个?月/);
-    if (monthMatch) {
-      return parseFloat(monthMatch[1]) / 12;
-    }
-
-    // 如果无法解析，默认返回2年（研究生常见时长）
-    console.warn(`Cannot parse program duration: ${programDuration}, defaulting to 2 years`);
-    return 2;
-  }
-
-  private calculateTotalCost(
-    tuition: TuitionData,
-    livingCosts: LivingCosts,
-    otherCosts: OtherCosts,
-    programDuration: number
-  ) {
-    // 学费总额 - 现在直接就是整个项目的总费用
-    const tuitionTotal = tuition.total;
-
-    // 生活费总额（月度费用 × 12个月 × 项目年数）
-    const livingTotal = livingCosts.total.amount * 12 * programDuration;
-
-    // 其他费用总额（一次性费用）
-    const otherFees = (otherCosts.applicationFee?.amount || 0) +
-                      (otherCosts.visaFee?.amount || 0) +
-                      (otherCosts.healthInsurance?.amount || 0);
-
-    // 总费用 = 学费 + 生活费 + 其他费用
-    const totalAmount = tuitionTotal + livingTotal + otherFees;
-
-    return {
-      amount: Math.round(totalAmount),
-      range: {
-        min: Math.round(totalAmount * 0.9),
-        max: Math.round(totalAmount * 1.1)
-      },
-      duration: programDuration
-    };
-  }
-
   private calculateTotalAnnualCost(
     tuition: TuitionData,
     livingCosts: LivingCosts,
     otherCosts: OtherCosts
   ) {
-    // 计算年度学费：将项目总学费除以项目年数
-    const programDuration = this.extractDurationInYears(tuition.programDuration);
-    const annualTuition = tuition.total / programDuration;
+    // 计算年度学费
+    const tuitionAmount = tuition.total / (tuition.programDuration || 1);
+    
+    // 计算年度生活费 (月费用 * 12)
+    const livingCostAmount = livingCosts.total.amount * 12;
+    
+    // 其他费用通常是一次性费用，按年分摊
+    const otherCostAmount = (
+      (otherCosts.applicationFee?.amount || 0) +
+      (otherCosts.visaFee?.amount || 0) +
+      (otherCosts.healthInsurance?.amount || 0)
+    );
 
-    // 计算年度生活费（月度费用 × 12个月）
-    const annualLiving = livingCosts.total.amount * 12;
-
-    // 计算年度总费用
-    const totalAmount = annualTuition + annualLiving;
+    const totalAmount = tuitionAmount + livingCostAmount + otherCostAmount;
 
     return {
       amount: Math.round(totalAmount),
@@ -180,19 +107,20 @@ export class ReportAgent {
     livingCosts: LivingCosts,
     otherCosts: OtherCosts
   ) {
-    // 计算月度学费：将项目总学费除以总月数
-    const programDuration = this.extractDurationInYears(tuition.programDuration);
-    const totalMonths = programDuration * 12;
-    const tuitionMonthly = tuition.total / totalMonths;
+    // 计算月度学费
+    const tuitionAmount = tuition.total / (tuition.programDuration || 1) / 12;
+    
+    // 月度生活费
+    const livingCostAmount = livingCosts.total.amount;
+    
+    // 其他费用按月分摊
+    const otherCostAmount = (
+      (otherCosts.applicationFee?.amount || 0) +
+      (otherCosts.visaFee?.amount || 0) +
+      (otherCosts.healthInsurance?.amount || 0)
+    ) / 12;
 
-    // 其他费用（一次性）分摊到每个月
-    const otherFees = (otherCosts.applicationFee?.amount || 0) +
-                      (otherCosts.visaFee?.amount || 0) +
-                      (otherCosts.healthInsurance?.amount || 0);
-    const otherMonthly = otherFees / totalMonths;
-
-    // 月度总费用 = 月度学费 + 月度生活费 + 月度其他费用分摊
-    const totalAmount = tuitionMonthly + livingCosts.total.amount + otherMonthly;
+    const totalAmount = tuitionAmount + livingCostAmount + otherCostAmount;
 
     return {
       amount: Math.round(totalAmount),
@@ -203,7 +131,45 @@ export class ReportAgent {
     };
   }
 
-  private async generateRecommendations(userInput: UserInput, reportData: any): Promise<string[]> {
+  private extractDurationInYears(programDuration: number | undefined): number {
+    return programDuration && programDuration > 0 ? programDuration : 4;
+  }
+
+  private calculateTotalCost(
+    tuition: TuitionData,
+    livingCosts: LivingCosts,
+    otherCosts: OtherCosts,
+    programDuration: number
+  ) {
+    // 学费总额
+    const tuitionAmount = tuition.total;
+    
+    // 生活费总额 (月费用 * 12 * 年数)
+    const livingCostAmount = livingCosts.total.amount * 12 * programDuration;
+    
+    // 其他费用总额 (一次性费用)
+    const otherCostAmount = (
+      (otherCosts.applicationFee?.amount || 0) +
+      (otherCosts.visaFee?.amount || 0) +
+      (otherCosts.healthInsurance?.amount || 0)
+    );
+
+    const totalAmount = tuitionAmount + livingCostAmount + otherCostAmount;
+
+    return {
+      amount: Math.round(totalAmount),
+      range: {
+        min: Math.round(totalAmount * 0.9),
+        max: Math.round(totalAmount * 1.1)
+      },
+      duration: programDuration
+    };
+  }
+
+  private async generateRecommendations(
+    userInput: UserInput, 
+    reportData: CostEstimateReport
+  ): Promise<string[]> {
     try {
       // 构建提示词给AI生成个性化建议
       const prompt = `作为一名留学费用规划专家，请基于以下用户信息和费用估算结果，提供5-8个实用的省钱建议：
@@ -265,5 +231,28 @@ export class ReportAgent {
 
       return fallbackRecommendations;
     }
+  }
+
+  private collectAllSources(
+    tuition: TuitionData,
+    livingCosts: LivingCosts,
+    otherCosts: OtherCosts
+  ): string[] {
+    const sources = new Set<string>();
+    
+    // 收集学费来源
+    if (tuition.source) sources.add(tuition.source);
+    
+    // 收集生活费来源
+    if (livingCosts.sources) {
+      livingCosts.sources.forEach(source => sources.add(source));
+    }
+    
+    // 收集其他费用来源
+    if (otherCosts.applicationFee?.source) sources.add(otherCosts.applicationFee.source);
+    if (otherCosts.visaFee?.source) sources.add(otherCosts.visaFee.source);
+    if (otherCosts.healthInsurance?.source) sources.add(otherCosts.healthInsurance.source);
+
+    return Array.from(sources);
   }
 }
