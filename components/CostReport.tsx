@@ -5,6 +5,7 @@ import { CostEstimateReport } from '@/types';
 import { formatCurrency, formatCurrencyRange, formatDate, extractDomain, ensureUrlProtocol } from '@/lib/utils';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { openRouterClient } from '@/lib/openrouter';
+import ReactMarkdown from 'react-markdown';
 
 interface CostReportProps {
   report: CostEstimateReport;
@@ -37,8 +38,8 @@ export default function CostReport({ report, onBack }: CostReportProps) {
       color: COLORS[1] 
     },
     { 
-      name: '生活费（不含住宿）', 
-      value: summary.breakdown.living, 
+      name: '生活费', 
+      value: summary.breakdown.living * (tuition.programDuration || 1), 
       color: COLORS[2] 
     },
     { name: '其他费用', value: summary.breakdown.other, color: COLORS[3] },
@@ -295,9 +296,9 @@ export default function CostReport({ report, onBack }: CostReportProps) {
       {/* 区块3: 费用构成区 */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* 年度费用分布饼图 */}
+          {/* 总花费支出饼图 */}
           <div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">年度费用分布</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">总花费支出</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -584,10 +585,35 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                     )}
                   </td>
                 </tr>
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">生活费（不含住宿）</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrencyRange(livingCosts.total.range.min, livingCosts.total.range.max, livingCosts.currency)}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500"></td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {livingCosts.sources && livingCosts.sources.length > 0 ? (
+                      <a 
+                        href={ensureUrlProtocol(livingCosts.sources[0])} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {extractDomain(livingCosts.sources[0]) || livingCosts.sources[0]}
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">无来源信息</span>
+                    )}
+                  </td>
+                </tr>
                 <tr className="bg-gray-100 font-semibold">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">月度总计</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrencyRange(livingCosts.total.range.min, livingCosts.total.range.max, livingCosts.currency)}
+                    {formatCurrencyRange(
+                      livingCosts.accommodation.monthlyRange.min + livingCosts.total.range.min,
+                      livingCosts.accommodation.monthlyRange.max + livingCosts.total.range.max,
+                      livingCosts.currency
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500"></td>
                   <td className="px-6 py-4 text-sm text-gray-500"></td>
@@ -691,7 +717,22 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                         ) : (
                           <>
                             <h4 className="font-semibold text-gray-900 mb-2">{detailedInfo.title}</h4>
-                            <div className="text-gray-700 mb-3 whitespace-pre-line">{detailedInfo.details}</div>
+                            <div className="text-gray-700 mb-3">
+                              <ReactMarkdown
+                                components={{
+                                  a: ({node, ...props}) => (
+                                    <a 
+                                      {...props} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline"
+                                    />
+                                  )
+                                }}
+                              >
+                                {detailedInfo.details}
+                              </ReactMarkdown>
+                            </div>
                             <button 
                               className="text-gray-600 hover:text-gray-800 text-sm font-medium"
                               onClick={(e) => {
