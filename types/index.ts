@@ -26,39 +26,20 @@ export interface TuitionData {
   programDuration: number;     // 项目时长（年）
 }
 
-// 生活费用数据接口
+// Add new interface for accommodation costs
+export interface AccommodationCost {
+  monthlyRange: {
+    min: number;
+    max: number;
+  };
+  currency: 'USD' | 'AUD';
+  source: string;
+  confidence?: number;
+  reasoning?: string;
+}
+
 export interface LivingCosts {
-  accommodation: {
-    amount: number;
-    type: string;
-    range: { min: number; max: number };
-    source?: string; // 单项来源
-  };
-  food: {
-    amount: number;
-    range: { min: number; max: number };
-    source?: string; // 单项来源
-  };
-  transportation: {
-    amount: number;
-    range: { min: number; max: number };
-    source?: string; // 单项来源
-  };
-  utilities: {
-    amount: number;
-    range: { min: number; max: number };
-    source?: string; // 单项来源
-  };
-  entertainment: {
-    amount: number;
-    range: { min: number; max: number };
-    source?: string; // 单项来源
-  };
-  miscellaneous: {
-    amount: number;
-    range: { min: number; max: number };
-    source?: string; // 单项来源
-  };
+  accommodation: AccommodationCost;
   total: {
     amount: number;
     range: { min: number; max: number };
@@ -66,7 +47,7 @@ export interface LivingCosts {
   currency: 'USD' | 'AUD';
   period: 'monthly';
   sources: string[];
-  confidence?: number; // 总体置信度 (0-1)
+  confidence?: number;
 }
 
 // 其他费用接口

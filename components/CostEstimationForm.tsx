@@ -1,22 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { UserInput, EstimationProgress } from '@/types';
+import { UserInput } from '@/types';
 import { US_UNIVERSITIES, AU_UNIVERSITIES, CITIES } from '@/lib/constants';
 
 interface CostEstimationFormProps {
-  onSubmit: (data: UserInput) => void;
-  isLoading: boolean;
-  progress?: EstimationProgress;
+  onSubmit: (userInput: UserInput) => void;
+  isLoading?: boolean;
 }
 
 export default function CostEstimationForm({ onSubmit, isLoading, progress }: CostEstimationFormProps) {
   const [formData, setFormData] = useState<Partial<UserInput>>({
     country: 'US',
     lifestyle: 'standard',
-    accommodation: 'dormitory',
-    diet: 'normal',
-    transportation: 'public'
+    accommodation: 'dormitory'
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -302,9 +299,19 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full md:w-auto bg-blue-600 text-white px-8 py-3 rounded-md font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? '正在生成估算报告...' : '生成费用估算报告'}
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V2.5a1 1 0 00-2 0V4a6 6 0 00-6 6 1 1 0 002 0z"></path>
+                  </svg>
+                  正在计算...
+                </span>
+              ) : (
+                '生成个性化费用报告'
+              )}
             </button>
           </div>
         </form>

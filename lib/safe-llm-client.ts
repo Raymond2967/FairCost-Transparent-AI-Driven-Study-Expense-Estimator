@@ -1,4 +1,5 @@
 import { openRouterClient } from './openrouter';
+import { OPENROUTER_CONFIG } from './constants';
 
 /**
  * 安全的LLM客户端包装器
@@ -7,6 +8,7 @@ import { openRouterClient } from './openrouter';
 export class SafeLLMClient {
   private maxRetries = 2;
   private retryDelay = 1000; // 1秒
+  private defaultModel = OPENROUTER_CONFIG.model;
 
   async safeExtractData<T>(
     content: string,
@@ -157,6 +159,78 @@ export class SafeLLMClient {
       fallback,
       '住宿费用数据'
     );
+  }
+
+  async extractNonAccommodationLivingCosts(searchResults: string, fallbackData: any): Promise<any> {
+    const extractionPrompt = `
+      Based on the following search results about living costs, extract the non-accommodation living costs:
+      
+      Search Results:
+      ${searchResults}
+      
+      Extract the following information in JSON format:
+      {
+        "food": {
+          "amount": [monthly food cost],
+          "range": {"min": [minimum], "max": [maximum]},
+          "source": "[source url]"
+        },
+        "transportation": {
+          "amount": [monthly transportation cost],
+          "range": {"min": [minimum], "max": [maximum]},
+          "source": "[source url]"
+        },
+        "utilities": {
+          "amount": [monthly utilities cost],
+          "range": {"min": [minimum], "max": [maximum]},
+          "source": "[source url]"
+        },
+        "entertainment": {
+          "amount": [monthly entertainment cost],
+          "range": {"min": [minimum], "max": [maximum]},
+          "source": "[source url]"
+        },
+        "miscellaneous": {
+          "amount": [monthly miscellaneous cost],
+          "range": {"min": [minimum], "max": [maximum]},
+          "source": "[source url]"
+        },
+        "total": {
+          "amount": [sum of all categories],
+          "range": {"min": [sum of minimums], "max": [sum of maximums]}
+        },
+        "source_url": "[main source url]",
+        "confidence": [0.0-1.0]
+      }
+      
+      If exact data is not available, use reasonable estimates based on the search results.
+      Focus specifically on "Cost of Living Index (Excl. Rent)" which excludes accommodation costs.
+      All amounts should be in monthly values.
+    `;
+
+    try {
+      const response = await openRouterClient.chat({
+        model: this.defaultModel,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a data extraction expert. Extract the requested information from the search results and return ONLY valid JSON.'
+          },
+          {
+            role: 'user',
+            content: extractionPrompt
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 1500
+      });
+
+      const content = response;
+      return JSON.parse(content);
+    } catch (error) {
+      console.error('Failed to extract non-accommodation living costs:', error);
+      return fallbackData;
+    }
   }
 }
 

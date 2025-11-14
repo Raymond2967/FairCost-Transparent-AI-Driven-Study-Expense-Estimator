@@ -3,6 +3,7 @@ import { TuitionAgent } from './agents/tuition-agent';
 import { LivingCostAgent } from './agents/living-cost-agent';
 import { OtherCostsAgent } from './agents/other-costs-agent';
 import { ReportAgent } from './agents/report-agent';
+import { UserInput, CostEstimateReport } from '@/types';
 
 export type ProgressCallback = (progress: EstimationProgress) => void;
 
@@ -175,28 +176,31 @@ export class EstimationCoordinator {
     };
 
     return {
-      amount: (emergencyFees as any)[country][level],
+      total: (emergencyFees as any)[country][level] * (level === 'undergraduate' ? 4 : 2),
       currency: country === 'US' ? 'USD' as const : 'AUD' as const,
-      period: 'annual' as const,
       source: '紧急后备数据',
       isEstimate: true,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
+      confidence: 0.3,
+      programDuration: level === 'undergraduate' ? 4 : 2
     };
   }
 
   private getEmergencyLivingData(userInput: UserInput) {
     const { country } = userInput;
     const currency = country === 'US' ? 'USD' as const : 'AUD' as const;
-    const baseAmount = country === 'US' ? 2500 : 2200;
+    const baseAmount = country === 'US' ? 1380 : 1180;
 
     return {
-      accommodation: { amount: Math.round(baseAmount * 0.4), type: userInput.accommodation, range: { min: 800, max: 1400 } },
-      food: { amount: Math.round(baseAmount * 0.25), range: { min: 400, max: 800 } },
-      transportation: { amount: Math.round(baseAmount * 0.1), range: { min: 100, max: 300 } },
-      utilities: { amount: Math.round(baseAmount * 0.1), range: { min: 80, max: 200 } },
-      entertainment: { amount: Math.round(baseAmount * 0.1), range: { min: 150, max: 400 } },
-      miscellaneous: { amount: Math.round(baseAmount * 0.05), range: { min: 100, max: 300 } },
-      total: { amount: baseAmount, range: { min: Math.round(baseAmount * 0.8), max: Math.round(baseAmount * 1.3) } },
+      accommodation: {
+        monthlyRange: { min: 800, max: 1400 },
+        currency,
+        source: '紧急后备数据'
+      },
+      total: {
+        amount: baseAmount,
+        range: { min: Math.round(baseAmount * 0.8), max: Math.round(baseAmount * 1.2) }
+      },
       currency,
       period: 'monthly' as const,
       sources: ['紧急后备数据']

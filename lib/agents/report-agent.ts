@@ -248,6 +248,11 @@ export class ReportAgent {
       livingCosts.sources.forEach(source => sources.add(source));
     }
     
+    // 如果accommodation有独立来源，也添加
+    if (livingCosts.accommodation?.source) {
+      sources.add(livingCosts.accommodation.source);
+    }
+    
     // 收集其他费用来源
     if (otherCosts.applicationFee?.source) sources.add(otherCosts.applicationFee.source);
     if (otherCosts.visaFee?.source) sources.add(otherCosts.visaFee.source);

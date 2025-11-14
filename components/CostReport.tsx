@@ -28,45 +28,36 @@ export default function CostReport({ report, onBack }: CostReportProps) {
   const [showOtherCostsDetails, setShowOtherCostsDetails] = useState(false);
   const [detailedRecommendations, setDetailedRecommendations] = useState<{[key: string]: DetailedRecommendation}>({});
 
-  // 准备饼图数据
+  // Prepare pie chart data - separating accommodation from other living costs
   const pieData = [
     { name: '学费', value: summary.breakdown.tuition, color: COLORS[0] },
-    { name: '生活费', value: summary.breakdown.living, color: COLORS[1] },
-    { name: '其他费用', value: summary.breakdown.other, color: COLORS[2] },
+    { 
+      name: '住宿费', 
+      value: (livingCosts.accommodation?.monthlyRange?.min || 0) * (tuition.programDuration || 1), 
+      color: COLORS[1] 
+    },
+    { 
+      name: '生活费（不含住宿）', 
+      value: summary.breakdown.living, 
+      color: COLORS[2] 
+    },
+    { name: '其他费用', value: summary.breakdown.other, color: COLORS[3] },
   ];
 
-  // 准备柱状图数据
+  // Prepare simplified bar chart data - only showing accommodation vs non-accommodation living costs
   const barData = [
     { 
-      category: '住宿', 
-      amount: livingCosts.accommodation.amount, 
-      range: `${livingCosts.accommodation.range.min}-${livingCosts.accommodation.range.max}`,
-      source: livingCosts.accommodation.source
+      category: '住宿费', 
+      amount: livingCosts.accommodation?.monthlyRange?.min || 0,
+      range: `${livingCosts.accommodation?.monthlyRange?.min || 0}-${livingCosts.accommodation?.monthlyRange?.max || 0}`,
+      source: livingCosts.accommodation?.source || ''
     },
     { 
-      category: '饮食', 
-      amount: livingCosts.food.amount, 
-      range: `${livingCosts.food.range.min}-${livingCosts.food.range.max}`,
-      source: livingCosts.food.source
-    },
-    { 
-      category: '交通', 
-      amount: livingCosts.transportation.amount, 
-      range: `${livingCosts.transportation.range.min}-${livingCosts.transportation.range.max}`,
-      source: livingCosts.transportation.source
-    },
-    { 
-      category: '娱乐', 
-      amount: livingCosts.entertainment.amount, 
-      range: `${livingCosts.entertainment.range.min}-${livingCosts.entertainment.range.max}`,
-      source: livingCosts.entertainment.source
-    },
-    { 
-      category: '其他', 
-      amount: livingCosts.miscellaneous.amount, 
-      range: `${livingCosts.miscellaneous.range.min}-${livingCosts.miscellaneous.range.max}`,
-      source: livingCosts.miscellaneous.source
-    },
+      category: '生活费（不含住宿）', 
+      amount: livingCosts.total?.amount || 0, 
+      range: `${livingCosts.total?.range?.min || 0}-${livingCosts.total?.range?.max || 0}`,
+      source: livingCosts.sources?.[0] || ''
+    }
   ];
 
   const downloadPDF = () => {
@@ -329,7 +320,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
 
           {/* 月度生活费构成条形图 */}
           <div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">您的月度生活费都花在哪？</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">您的月度生活成本构成</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={barData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -548,7 +539,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
         {/* 月度生活费明细表格 */}
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">月度生活费明细</h3>
+            <h3 className="text-lg font-semibold text-gray-900">月度生活成本明细</h3>
             <button 
               onClick={() => setShowLivingCostDetails(!showLivingCostDetails)}
               className="text-blue-600 hover:text-blue-800 text-sm font-medium"
@@ -569,14 +560,14 @@ export default function CostReport({ report, onBack }: CostReportProps) {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">住宿</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">住宿费</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrencyRange(livingCosts.accommodation.range.min, livingCosts.accommodation.range.max, livingCosts.currency)}
+                    {formatCurrencyRange(livingCosts.accommodation.monthlyRange.min, livingCosts.accommodation.monthlyRange.max, livingCosts.currency)}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {livingCosts.accommodation.type === 'dormitory' ? '校内宿舍' : 
-                     livingCosts.accommodation.type === 'shared' ? '校外合租' : 
-                     livingCosts.accommodation.type === 'studio' ? '单间公寓' : '其他住宿'}
+                    {userInput.accommodation === 'dormitory' ? '校内宿舍' : 
+                     userInput.accommodation === 'shared' ? '校外合租' : 
+                     userInput.accommodation === 'studio' ? '单间公寓' : '私人公寓'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {livingCosts.accommodation.source ? (
@@ -587,121 +578,6 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                         className="text-blue-600 hover:underline"
                       >
                         {extractDomain(livingCosts.accommodation.source)}
-                      </a>
-                    ) : (
-                      <span className="text-gray-500">无来源信息</span>
-                    )}
-                  </td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">饮食</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrencyRange(livingCosts.food.range.min, livingCosts.food.range.max, livingCosts.currency)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {userInput.lifestyle === 'economy' ? '经济型饮食' : 
-                     userInput.lifestyle === 'comfortable' ? '舒适型饮食' : '标准型饮食'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {livingCosts.food.source ? (
-                      <a 
-                        href={ensureUrlProtocol(livingCosts.food.source)} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {extractDomain(livingCosts.food.source)}
-                      </a>
-                    ) : (
-                      <span className="text-gray-500">无来源信息</span>
-                    )}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">交通</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrencyRange(livingCosts.transportation.range.min, livingCosts.transportation.range.max, livingCosts.currency)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {userInput.transportation === 'walking' ? '步行为主' : 
-                     userInput.transportation === 'public' ? '公共交通' : 
-                     userInput.transportation === 'bike' ? '自行车' : '私家车'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {livingCosts.transportation.source ? (
-                      <a 
-                        href={ensureUrlProtocol(livingCosts.transportation.source)} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {extractDomain(livingCosts.transportation.source)}
-                      </a>
-                    ) : (
-                      <span className="text-gray-500">无来源信息</span>
-                    )}
-                  </td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">水电</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrencyRange(livingCosts.utilities.range.min, livingCosts.utilities.range.max, livingCosts.currency)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">基础水电费用</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {livingCosts.utilities.source ? (
-                      <a 
-                        href={ensureUrlProtocol(livingCosts.utilities.source)} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {extractDomain(livingCosts.utilities.source)}
-                      </a>
-                    ) : (
-                      <span className="text-gray-500">无来源信息</span>
-                    )}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">娱乐</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrencyRange(livingCosts.entertainment.range.min, livingCosts.entertainment.range.max, livingCosts.currency)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {userInput.lifestyle === 'economy' ? '低频娱乐' : 
-                     userInput.lifestyle === 'comfortable' ? '高频娱乐' : '中等娱乐'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {livingCosts.entertainment.source ? (
-                      <a 
-                        href={ensureUrlProtocol(livingCosts.entertainment.source)} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {extractDomain(livingCosts.entertainment.source)}
-                      </a>
-                    ) : (
-                      <span className="text-gray-500">无来源信息</span>
-                    )}
-                  </td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">其他</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrencyRange(livingCosts.miscellaneous.range.min, livingCosts.miscellaneous.range.max, livingCosts.currency)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">日用品等其他费用</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {livingCosts.miscellaneous.source ? (
-                      <a 
-                        href={ensureUrlProtocol(livingCosts.miscellaneous.source)} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {extractDomain(livingCosts.miscellaneous.source)}
                       </a>
                     ) : (
                       <span className="text-gray-500">无来源信息</span>
