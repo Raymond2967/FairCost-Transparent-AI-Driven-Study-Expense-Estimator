@@ -29,19 +29,15 @@ export default function CostReport({ report, onBack }: CostReportProps) {
   const [showOtherCostsDetails, setShowOtherCostsDetails] = useState(false);
   const [detailedRecommendations, setDetailedRecommendations] = useState<{[key: string]: DetailedRecommendation}>({});
 
-  // Prepare pie chart data - separating accommodation from other living costs
+  // Prepare pie chart data - using total costs over program duration
+  const programDuration = tuition.programDuration || 1;
+  const accommodationTotal = (livingCosts.accommodation?.monthlyRange?.min || 0) * 12 * programDuration;
+  const livingTotal = summary.breakdown.living * 12 * programDuration;
+
   const pieData = [
     { name: '学费', value: summary.breakdown.tuition, color: COLORS[0] },
-    { 
-      name: '住宿费', 
-      value: (livingCosts.accommodation?.monthlyRange?.min || 0) * (tuition.programDuration || 1), 
-      color: COLORS[1] 
-    },
-    { 
-      name: '生活费', 
-      value: summary.breakdown.living * (tuition.programDuration || 1), 
-      color: COLORS[2] 
-    },
+    { name: '住宿费', value: accommodationTotal, color: COLORS[1] },
+    { name: '生活费（不含住宿）', value: livingTotal, color: COLORS[2] },
     { name: '其他费用', value: summary.breakdown.other, color: COLORS[3] },
   ];
 
@@ -88,7 +84,9 @@ export default function CostReport({ report, onBack }: CostReportProps) {
 
     try {
       // 构建提示词给AI生成详细建议
-      const prompt = `作为一名留学费用规划专家，请为以下建议方向提供详细说明：
+      const { country, city, program, level, lifestyle, accommodation, diet, transportation, programDuration } = userInput;
+      
+      const prompt = `作为一名留学费用规划专家，请直接提供以下内容，不要包含任何引言或总结：
 
 用户情况：
 - 学校：${userInput.university}
@@ -503,7 +501,8 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">小计</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrency(
-                      tuition.total + 
+                      // 小计仅包含一次性费用：申请费 + 签证费 + 健康保险
+                      // 不包含学费或其他年度费用
                       otherCosts.applicationFee.amount + 
                       otherCosts.visaFee.amount + 
                       (otherCosts.healthInsurance?.amount || 0),
@@ -610,8 +609,10 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">月度总计</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrencyRange(
-                      livingCosts.accommodation.monthlyRange.min + livingCosts.total.range.min,
-                      livingCosts.accommodation.monthlyRange.max + livingCosts.total.range.max,
+                      (livingCosts.accommodation?.monthlyRange?.min || 0) + 
+                      (livingCosts.total.range.min - livingCosts.accommodation?.monthlyRange?.min * 12) / 12,
+                      (livingCosts.accommodation?.monthlyRange?.max || 0) + 
+                      (livingCosts.total.range.max - livingCosts.accommodation?.monthlyRange?.max * 12) / 12,
                       livingCosts.currency
                     )}
                   </td>
@@ -654,24 +655,17 @@ export default function CostReport({ report, onBack }: CostReportProps) {
           )}
         </div>
 
-        {/* 年度总费用计算说明 */}
+        {/* 费用计算说明 */}
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <h3 className="font-medium text-gray-900 mb-2">费用计算说明</h3>
           <div className="text-sm text-gray-700">
             <p className="mb-2">
-              <strong>年度总费用</strong> = 学费年均 + 12个月生活费
-            </p>
-            <p className="mb-2">
-              计算公式：{formatCurrency(summary.breakdown.tuition / summary.totalCost.duration, summary.currency)} (学费年均) + 
-              {formatCurrency(summary.breakdown.living / 12, summary.currency)} × 12 (12个月生活费) = 
-              {formatCurrency(summary.totalAnnualCost.amount, summary.currency)}
-            </p>
-            <p className="mb-2">
-              <strong>总花费</strong> = 项目总学费 + 生活费总额 + 一次性费用
+              <strong>总花费</strong> = 项目总学费 + 住宿费总额 + 生活费总额（不含住宿）+ 一次性费用
             </p>
             <p className="mb-2">
               计算公式：{formatCurrency(tuition.total, summary.currency)} (项目总学费) + 
-              {formatCurrency(livingCosts.total.amount, summary.currency)} × 12 × {summary.totalCost.duration} (生活费总额) + 
+              {formatCurrency((livingCosts.accommodation?.monthlyRange?.min || 0) * 12 * tuition.programDuration, summary.currency)} (住宿费总额) + 
+              {formatCurrency(summary.breakdown.living * 12 * tuition.programDuration, summary.currency)} (生活费总额) + 
               {formatCurrency(summary.breakdown.other, summary.currency)} (一次性费用) = 
               {formatCurrency(summary.totalCost.amount, summary.currency)}
             </p>
