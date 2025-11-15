@@ -290,6 +290,7 @@ export class EstimationCoordinator {
     if (!userInput.level) errors.push('学位层次不能为空');
     if (!userInput.lifestyle) errors.push('生活方式不能为空');
     if (!userInput.accommodation) errors.push('住宿偏好不能为空');
+    if (!userInput.locationPreference) errors.push('地理位置偏好不能为空');
 
     return {
       isValid: errors.length === 0,

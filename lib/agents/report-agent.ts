@@ -189,10 +189,11 @@ export class ReportAgent {
       const prompt = `Based on the following cost estimate report for a student planning to study ${userInput.program} in ${userInput.city}, ${userInput.country}, provide 3-5 specific, actionable recommendations for saving money or optimizing their budget:
 
       Report Summary:
-      - Total Program Cost: $${currentReport.summary.totalCost.amount}
-      - Annual Living Cost: $${currentReport.summary.totalAnnualCost.amount}
+      - Total Program Cost: ${currentReport.summary.totalCost.amount} ${currentReport.summary.currency}
+      - Annual Living Cost: ${currentReport.summary.totalAnnualCost.amount} ${currentReport.summary.currency}
       - Accommodation Type: ${userInput.accommodation}
       - Lifestyle Preference: ${userInput.lifestyle}
+      - Location Preference: ${userInput.locationPreference === 'cityCentre' ? 'City Centre' : 'Outside City Centre'}
 
       Please provide practical advice in Chinese about:
       1. Accommodation options
@@ -201,7 +202,7 @@ export class ReportAgent {
       4. Student discounts and benefits
       5. Transportation and other cost-saving measures
 
-      Return ONLY a JSON array of 3-5 recommendation strings in Chinese.`;
+      Return ONLY a valid JSON array with 3-5 recommendation strings in Chinese. Do not include any other text, explanations, or formatting. Example format: ["建议1", "建议2", "建议3"]`;
 
       // 设置超时控制
       const timeoutPromise = new Promise((_, reject) => 
@@ -213,7 +214,7 @@ export class ReportAgent {
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful study abroad advisor providing practical budgeting advice in Chinese.'
+            content: 'You are a helpful study abroad advisor providing practical budgeting advice in Chinese. Return ONLY a valid JSON array with 3-5 recommendation strings. Do not include any other text, explanations, or formatting. Example format: ["建议1", "建议2", "建议3"]'
           },
           {
             role: 'user',
@@ -231,12 +232,36 @@ export class ReportAgent {
         throw new Error('Invalid response format from LLM');
       }
 
+      // 检查消息内容是否存在
+      if (!response.choices[0].message || !response.choices[0].message.content) {
+        throw new Error('No content in LLM response');
+      }
+
       // Try to extract JSON array from response
-      const recommendationsMatch = response.choices[0]?.message?.content?.match(/\[[\s\S]*\]/);
-      if (recommendationsMatch) {
-        return JSON.parse(recommendationsMatch[0]);
+      const content = response.choices[0].message.content.trim();
+      
+      // 尝试直接解析整个响应作为JSON
+      try {
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+          return parsed;
+        }
+      } catch (parseError) {
+        // 如果直接解析失败，尝试提取JSON数组
+        const recommendationsMatch = content.match(/\[[\s\S]*\]/);
+        if (recommendationsMatch) {
+          try {
+            const parsed = JSON.parse(recommendationsMatch[0]);
+            if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+              return parsed;
+            }
+          } catch (innerParseError) {
+            console.error('Failed to parse recommendations as JSON:', innerParseError);
+          }
+        }
       }
       
+      // 如果无法解析JSON，返回默认建议
       return [
         "建议申请校内宿舍以获得更优惠的价格",
         "可以通过做饭和合理规划饮食来节省生活费用",

@@ -14,7 +14,8 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
   const [formData, setFormData] = useState<Partial<UserInput>>({
     country: 'US',
     lifestyle: 'standard',
-    accommodation: 'dormitory'
+    accommodation: 'dormitory',
+    locationPreference: 'cityCentre'
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -52,6 +53,7 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
     if (!formData.level) newErrors.level = '请选择学位层次';
     if (!formData.lifestyle) newErrors.lifestyle = '请选择消费档次';
     if (!formData.accommodation) newErrors.accommodation = '请选择住宿偏好';
+    if (!formData.locationPreference) newErrors.locationPreference = '请选择地理位置偏好';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -191,7 +193,6 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
             {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
           </div>
 
-
           {/* 生活方式偏好 */}
           <div className="space-y-6">
             <h3 className="text-xl font-semibold text-gray-900">生活方式偏好</h3>
@@ -254,6 +255,34 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
                   ))}
                 </div>
                 {errors.accommodation && <p className="text-red-500 text-sm mt-1">{errors.accommodation}</p>}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  地理位置偏好 <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-2">
+                  {[
+                    { value: 'cityCentre', label: '市中心', desc: '交通便利，生活设施齐全' },
+                    { value: 'outsideCityCentre', label: '郊区', desc: '相对安静，价格可能更实惠' }
+                  ].map(option => (
+                    <label key={option.value} className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        value={option.value}
+                        checked={formData.locationPreference === option.value}
+                        onChange={(e) => handleInputChange('locationPreference', e.target.value)}
+                        className="text-blue-600 focus:ring-blue-500"
+                        disabled={isLoading}
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">{option.label}</div>
+                        <div className="text-sm text-gray-500">{option.desc}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {errors.locationPreference && <p className="text-red-500 text-sm mt-1">{errors.locationPreference}</p>}
               </div>
             </div>
           </div>

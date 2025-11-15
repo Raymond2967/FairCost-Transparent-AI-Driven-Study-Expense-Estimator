@@ -4,9 +4,13 @@ import { CITIES, SEARCH_MODEL } from '../constants';
 
 // Define the expected output structure for LLM extraction
 const NON_ACCOMMODATION_EXTRACTION_SCHEMA = `{
-  "monthlyCost": 1668.8,
-  "currency": "USD",
-  "source": "https://www.numbeo.com/cost-of-living/in/New-York",
+  "monthlyCost": 1146.7,
+  "monthlyRange": {
+    "min": 1173,
+    "max": 1760
+  },
+  "currency": "AUD",
+  "source": "https://www.numbeo.com/cost-of-living/in/Sydney",
   "confidence": 0.9,
   "reasoning": "Based on Cost of Living data from numbeo.com"
 }`;
@@ -49,6 +53,7 @@ export class LivingCostAgent {
 
   private async getCostOfLivingData(targetCity: string, country: 'US' | 'AU'): Promise<{ 
     monthlyCost: number;
+    monthlyRange: { min: number; max: number };
     currency: 'USD' | 'AUD'; 
     source: string; 
     confidence?: number; 
@@ -62,9 +67,10 @@ export class LivingCostAgent {
 
       Instructions:
       1. Search for the most recent "estimated monthly costs for a single person excluding rent" for ${targetCity} on numbeo.com
-      2. Extract the exact cost value for the city
-      3. Return the cost value, currency, source URL (specific page with the data, not just the homepage), confidence level, and brief reasoning
-      4. Return ONLY a JSON object with the exact structure specified below
+      2. Extract BOTH the exact cost value AND the cost range (min-max) provided on the page
+      3. For example, if the page shows "The estimated monthly costs for a single person are 1,146.7$ (1,755.8A$), excluding rent" with a range of "1,173 - 1,760", extract both values
+      4. Return the cost value, cost range, currency, source URL (specific page with the data, not just the homepage), confidence level, and brief reasoning
+      5. Return ONLY a JSON object with the exact structure specified below
 
       CRITICAL RULES:
       - MUST provide a real, accessible URL from numbeo.com as the source (specific page with the data)
@@ -72,6 +78,8 @@ export class LivingCostAgent {
       - If multiple values exist, use the most recent one
       - For confidence: direct data from numbeo = 0.8-0.9
       - ALWAYS return the result in the user's target country currency (USD for US, AUD for AU)
+      - ALWAYS provide both monthlyCost (single value) and monthlyRange (min-max range)
+      - Do NOT round numbers, use exact values from the website
 
       Return ONLY a JSON object with this exact structure:
       ${NON_ACCOMMODATION_EXTRACTION_SCHEMA}
@@ -83,7 +91,7 @@ export class LivingCostAgent {
         messages: [
           {
             role: 'system',
-            content: 'You are a precise cost of living analysis expert. Always respond with valid JSON in the exact format specified. Accuracy is critical - do not invent or estimate numbers. You must return the cost based on actual data from numbeo.com. Provide the specific URL with the data, not just the homepage.'
+            content: 'You are a precise cost of living analysis expert. Always respond with valid JSON in the exact format specified. Accuracy is critical - do not invent or estimate numbers. You must return the cost based on actual data from numbeo.com. Provide the specific URL with the data, not just the homepage. Always provide both the single monthly cost and the monthly range.'
           },
           {
             role: 'user',
@@ -102,6 +110,10 @@ export class LivingCostAgent {
       // Validate and return the result
       return {
         monthlyCost: Number(extractedData.monthlyCost),
+        monthlyRange: {
+          min: Number(extractedData.monthlyRange.min),
+          max: Number(extractedData.monthlyRange.max)
+        },
         currency: extractedData.currency as 'USD' | 'AUD',
         source: extractedData.source,
         confidence: extractedData.confidence,
@@ -116,8 +128,14 @@ export class LivingCostAgent {
       const cityParam = targetCity ? `in/${encodeURIComponent(targetCity)}` : '';
       const specificUrl = baseUrl + cityParam;
       
+      // Return fallback with estimated range
+      const monthlyCost = country === 'US' ? 1500 : 1200;
       return {
-        monthlyCost: country === 'US' ? 1500 : 1200,
+        monthlyCost: monthlyCost,
+        monthlyRange: {
+          min: Math.round(monthlyCost * 0.8),
+          max: Math.round(monthlyCost * 1.2)
+        },
         currency: country === 'US' ? 'USD' : 'AUD',
         source: specificUrl,
         confidence: 0.6,

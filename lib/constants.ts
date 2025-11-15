@@ -96,4 +96,4 @@ export const OPENROUTER_CONFIG = {
 export const SEARCH_MODEL = "openai/gpt-4o-search-preview";
 
 // 报告生成模型配置
-export const REPORT_MODEL = "anthropic/claude-3.5-sonnet";
+export const REPORT_MODEL = "openai/gpt-4o";

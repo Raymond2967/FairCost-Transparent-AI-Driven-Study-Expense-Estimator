@@ -7,6 +7,7 @@ export interface UserInput {
   level: 'undergraduate' | 'graduate';
   lifestyle: 'economy' | 'standard' | 'comfortable';
   accommodation: 'dormitory' | 'shared' | 'studio' | 'apartment';
+  locationPreference: 'cityCentre' | 'outsideCityCentre'; // 市中心或郊区偏好
 
   // 选填字段
   diet?: 'normal' | 'vegetarian' | 'halal' | 'kosher' | 'custom';
