@@ -45,13 +45,13 @@ export default function CostReport({ report, onBack }: CostReportProps) {
   const barData = [
     { 
       category: '住宿费', 
-      amount: livingCosts.accommodation?.monthlyRange?.min || 0,
+      amount: ((livingCosts.accommodation?.monthlyRange?.min || 0) + (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2,
       range: `${livingCosts.accommodation?.monthlyRange?.min || 0}-${livingCosts.accommodation?.monthlyRange?.max || 0}`,
       source: livingCosts.accommodation?.source || ''
     },
     { 
       category: '生活费（不含住宿）', 
-      amount: livingCosts.total?.amount || 0, 
+      amount: ((livingCosts.total?.range?.min || 0) + (livingCosts.total?.range?.max || 0)) / 2, 
       range: `${livingCosts.total?.range?.min || 0}-${livingCosts.total?.range?.max || 0}`,
       source: livingCosts.sources?.[0] || ''
     }
