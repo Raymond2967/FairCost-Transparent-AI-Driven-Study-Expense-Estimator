@@ -31,13 +31,15 @@ export default function CostReport({ report, onBack }: CostReportProps) {
 
   // Prepare pie chart data - using total costs over program duration
   const programDuration = tuition.programDuration || 1;
-  const accommodationTotal = (livingCosts.accommodation?.monthlyRange?.min || 0) * 12 * programDuration;
-  const livingTotal = summary.breakdown.living * programDuration;
+  const accommodationMonthlyAvg = ((livingCosts.accommodation?.monthlyRange?.min || 0) + 
+                                 (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2;
+  const accommodationTotal = accommodationMonthlyAvg * 12 * programDuration;
+  const nonAccommodationTotal = livingCosts.total.amount * 12 * programDuration;
 
   const pieData = [
     { name: '学费', value: summary.breakdown.tuition, color: COLORS[0] },
     { name: '住宿费', value: accommodationTotal, color: COLORS[1] },
-    { name: '生活费（不含住宿）', value: livingTotal, color: COLORS[2] },
+    { name: '生活费', value: nonAccommodationTotal, color: COLORS[2] },
     { name: '其他费用', value: summary.breakdown.other, color: COLORS[3] },
   ];
 
