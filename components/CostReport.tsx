@@ -84,27 +84,26 @@ export default function CostReport({ report, onBack }: CostReportProps) {
 
     try {
       // 构建提示词给AI生成详细建议
-      const { country, city, program, level, lifestyle, accommodation, diet, transportation, programDuration } = userInput;
-      
-      const prompt = `作为一名留学费用规划专家，请直接提供以下内容，不要包含任何引言或总结：
+      const prompt = `作为一名留学费用规划专家，请基于以下用户情况，为他们的建议"${recommendations[index]}"提供详细指导：
 
-用户情况：
+User情况：
 - 学校：${userInput.university}
 - 专业：${userInput.program}
 - 学位：${userInput.level === 'undergraduate' ? '本科' : '硕士'}
 - 国家：${userInput.country}
 - 城市：${userInput.city || '未知'}
 - 生活方式：${userInput.lifestyle === 'economy' ? '经济型' : userInput.lifestyle === 'comfortable' ? '舒适型' : '标准型'}
-- 住宿偏好：${userInput.accommodation === 'dormitory' ? '宿舍' : userInput.accommodation === 'apartment' ? '公寓' : '其他'}
+- 住宿偏好：${userInput.accommodation === 'dormitory' ? '宿舍' : userInput.accommodation === 'shared' ? '合租' : userInput.accommodation === 'studio' ? '单间' : '整租'}
+- 地理位置偏好：${userInput.locationPreference === 'cityCentre' ? '市中心' : '郊区'}
 
 建议方向：${recommendations[index]}
 
-请提供：
-1. 详细解释该建议的背景和重要性
-2. 具体实施步骤（3-5个步骤）
-3. 预期节省金额范围（如果适用）
-4. 注意事项和潜在风险
-5. 相关资源链接（如果有）
+请提供以下内容，不要包含任何引言或总结：
+1. 详细解释该建议的背景和重要性（为什么这个建议对该用户特别重要）
+2. 具体实施步骤（3-5个具体步骤，要适合该用户的国家和城市）
+3. 预期节省金额范围（如果适用，请结合该城市的生活成本给出具体数字）
+4. 注意事项和潜在风险（针对该用户所在国家和城市的具体风险）
+5. 相关资源链接（如果有，请提供该国家或城市的具体资源链接）
 
 请用中文回复，内容要具体、实用，避免空泛的建议。`;
 
@@ -114,7 +113,10 @@ export default function CostReport({ report, onBack }: CostReportProps) {
         messages: [
           {
             role: 'system',
-            content: '你是一位专业的留学费用规划顾问，擅长为留学生提供个性化、实用的费用节省建议。'
+            content: `你是一位专业的留学费用规划顾问，擅长为留学生提供个性化、实用的费用节省建议。
+你的任务是根据用户的个人情况（学校、专业、国家、城市、生活方式、住宿偏好等），为他们的财务建议提供详细指导。
+你需要提供具体、实用的建议，包括实施步骤、预期节省金额、注意事项和相关资源链接。
+所有建议都应该是针对用户所在国家和城市的实际情况。`
           },
           {
             role: 'user',

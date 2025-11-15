@@ -23,8 +23,11 @@ export class ReportAgent {
                                      (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2;
       const accommodationAnnual = accommodationMonthlyAvg * 12;
 
-      // 生成个性化建议
-      const recommendations = await this.generateRecommendations(userInput, {
+      // 收集所有来源
+      const sources = this.collectAllSources(tuition, livingCosts, otherCosts);
+
+      // 构建完整的报告对象（在生成建议之前）
+      const completeReport: CostEstimateReport = {
         userInput,
         tuition,
         livingCosts,
@@ -44,33 +47,16 @@ export class ReportAgent {
         },
         recommendations: [],
         generatedAt: new Date().toISOString(),
-        sources: []
-      });
-
-      // 收集所有来源
-      const sources = this.collectAllSources(tuition, livingCosts, otherCosts);
-
-      return {
-        userInput,
-        tuition,
-        livingCosts,
-        otherCosts,
-        summary: {
-          totalAnnualCost,
-          totalMonthlyCost,
-          totalCost: { ...totalCost, duration: programDuration },
-          currency: tuition.currency,
-          breakdown: {
-            tuition: tuition.total,
-            living: nonAccommodationAnnual + accommodationAnnual,
-            other: (otherCosts.applicationFee?.amount || 0) +
-                   (otherCosts.visaFee?.amount || 0) +
-                   (otherCosts.healthInsurance?.amount || 0)
-          }
-        },
-        recommendations,
-        generatedAt: new Date().toISOString(),
         sources
+      };
+
+      // 生成个性化建议
+      const recommendations = await this.generateRecommendations(userInput, completeReport);
+
+      // 返回最终报告
+      return {
+        ...completeReport,
+        recommendations
       };
 
     } catch (error) {
@@ -188,21 +174,29 @@ export class ReportAgent {
       // Generate personalized recommendations using LLM
       const prompt = `Based on the following cost estimate report for a student planning to study ${userInput.program} in ${userInput.city}, ${userInput.country}, provide 3-5 specific, actionable recommendations for saving money or optimizing their budget:
 
-      Report Summary:
-      - Total Program Cost: ${currentReport.summary.totalCost.amount} ${currentReport.summary.currency}
-      - Annual Living Cost: ${currentReport.summary.totalAnnualCost.amount} ${currentReport.summary.currency}
-      - Accommodation Type: ${userInput.accommodation}
-      - Lifestyle Preference: ${userInput.lifestyle}
+      User Profile:
+      - University: ${userInput.university}
+      - Program: ${userInput.program}
+      - Degree Level: ${userInput.level === 'undergraduate' ? 'Undergraduate' : 'Postgraduate'}
+      - Country: ${userInput.country}
+      - City: ${userInput.city}
+      - Lifestyle Preference: ${userInput.lifestyle === 'economy' ? 'Economy' : userInput.lifestyle === 'comfortable' ? 'Comfortable' : 'Standard'}
+      - Accommodation Type: ${userInput.accommodation === 'dormitory' ? 'Dormitory' : userInput.accommodation === 'shared' ? 'Shared Apartment' : userInput.accommodation === 'studio' ? 'Studio' : 'Private Apartment'}
       - Location Preference: ${userInput.locationPreference === 'cityCentre' ? 'City Centre' : 'Outside City Centre'}
 
-      Please provide practical advice in Chinese about:
-      1. Accommodation options
-      2. Daily expense management
-      3. Part-time work opportunities (if allowed)
-      4. Student discounts and benefits
-      5. Transportation and other cost-saving measures
+      Cost Analysis:
+      - Total Program Cost: ${currentReport.summary.totalCost.amount} ${currentReport.summary.currency}
+      - Annual Living Cost: ${currentReport.summary.totalAnnualCost.amount} ${currentReport.summary.currency}
+      - Monthly Living Cost: ${currentReport.summary.totalMonthlyCost.amount} ${currentReport.summary.currency}
 
-      Return ONLY a valid JSON array with 3-5 recommendation strings in Chinese. Do not include any other text, explanations, or formatting. Example format: ["建议1", "建议2", "建议3"]`;
+      Please provide practical advice in Chinese about:
+      1. Accommodation cost optimization based on their chosen accommodation type and location preference
+      2. Daily expense management considering their lifestyle preference
+      3. Part-time work opportunities relevant to their program and location (if allowed)
+      4. Student discounts and benefits specific to their university and country
+      5. Transportation and other cost-saving measures in their city
+
+      Return ONLY a valid JSON array with 3-5 recommendation strings in Chinese. Each recommendation should be specific and personalized to the user's situation. Do not include any other text, explanations, or formatting. Example format: ["建议1", "建议2", "建议3"]`;
 
       // 设置超时控制
       const timeoutPromise = new Promise((_, reject) => 
@@ -227,24 +221,43 @@ export class ReportAgent {
 
       const response = await Promise.race([llmPromise, timeoutPromise]) as any;
 
-      // 检查响应格式是否正确
-      if (!response || !response.choices || response.choices.length === 0) {
-        throw new Error('Invalid response format from LLM');
+      // 更全面地检查响应格式
+      if (!response) {
+        throw new Error('Empty response from LLM');
       }
 
-      // 检查消息内容是否存在
-      if (!response.choices[0].message || !response.choices[0].message.content) {
-        throw new Error('No content in LLM response');
+      // 检查是否是 OpenRouter API 的标准响应格式
+      if (response.error) {
+        throw new Error(`LLM API error: ${JSON.stringify(response.error)}`);
       }
 
-      // Try to extract JSON array from response
-      const content = response.choices[0].message.content.trim();
-      
+      // 检查响应内容是否存在
+      let content = '';
+      if (typeof response === 'string') {
+        // 如果响应是字符串（直接从 chat 方法返回）
+        content = response.trim();
+      } else if (response.choices && response.choices.length > 0) {
+        // 如果响应是标准的 OpenAI 格式
+        if (response.choices[0].message && response.choices[0].message.content) {
+          content = response.choices[0].message.content.trim();
+        } else {
+          throw new Error('No content in LLM response choices');
+        }
+      } else {
+        throw new Error('Invalid response format from LLM - no choices array');
+      }
+
+      if (!content) {
+        throw new Error('Empty content in LLM response');
+      }
+
       // 尝试直接解析整个响应作为JSON
       try {
         const parsed = JSON.parse(content);
         if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
           return parsed;
+        } else {
+          console.error('Response is not an array of strings:', parsed);
         }
       } catch (parseError) {
         // 如果直接解析失败，尝试提取JSON数组
@@ -254,14 +267,20 @@ export class ReportAgent {
             const parsed = JSON.parse(recommendationsMatch[0]);
             if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
               return parsed;
+            } else {
+              console.error('Extracted content is not an array of strings:', parsed);
             }
           } catch (innerParseError) {
-            console.error('Failed to parse recommendations as JSON:', innerParseError);
+            console.error('Failed to parse extracted recommendations as JSON:', innerParseError);
+            console.error('Extracted content:', recommendationsMatch[0]);
           }
+        } else {
+          console.error('No JSON array found in response:', content);
         }
       }
       
       // 如果无法解析JSON，返回默认建议
+      console.error('Failed to parse any valid JSON from response:', content);
       return [
         "建议申请校内宿舍以获得更优惠的价格",
         "可以通过做饭和合理规划饮食来节省生活费用",
