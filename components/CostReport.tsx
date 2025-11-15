@@ -32,7 +32,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
   // Prepare pie chart data - using total costs over program duration
   const programDuration = tuition.programDuration || 1;
   const accommodationTotal = (livingCosts.accommodation?.monthlyRange?.min || 0) * 12 * programDuration;
-  const livingTotal = summary.breakdown.living * 12 * programDuration;
+  const livingTotal = summary.breakdown.living * programDuration;
 
   const pieData = [
     { name: '学费', value: summary.breakdown.tuition, color: COLORS[0] },
@@ -610,9 +610,9 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrencyRange(
                       (livingCosts.accommodation?.monthlyRange?.min || 0) + 
-                      (livingCosts.total.range.min - livingCosts.accommodation?.monthlyRange?.min * 12) / 12,
+                      (livingCosts.total.range.min - (livingCosts.accommodation?.monthlyRange?.min || 0) * 12) / 12,
                       (livingCosts.accommodation?.monthlyRange?.max || 0) + 
-                      (livingCosts.total.range.max - livingCosts.accommodation?.monthlyRange?.max * 12) / 12,
+                      (livingCosts.total.range.max - (livingCosts.accommodation?.monthlyRange?.max || 0) * 12) / 12,
                       livingCosts.currency
                     )}
                   </td>
@@ -665,7 +665,7 @@ export default function CostReport({ report, onBack }: CostReportProps) {
             <p className="mb-2">
               计算公式：{formatCurrency(tuition.total, summary.currency)} (项目总学费) + 
               {formatCurrency((livingCosts.accommodation?.monthlyRange?.min || 0) * 12 * tuition.programDuration, summary.currency)} (住宿费总额) + 
-              {formatCurrency(summary.breakdown.living * 12 * tuition.programDuration, summary.currency)} (生活费总额) + 
+              {formatCurrency(summary.breakdown.living * tuition.programDuration, summary.currency)} (生活费总额) + 
               {formatCurrency(summary.breakdown.other, summary.currency)} (一次性费用) = 
               {formatCurrency(summary.totalCost.amount, summary.currency)}
             </p>
