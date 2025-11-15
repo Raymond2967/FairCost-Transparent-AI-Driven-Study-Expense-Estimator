@@ -75,6 +75,18 @@ export class SafeLLMClient {
         }
       }
 
+      // 特殊验证：检查源URL是否是真实URL而不是占位符
+      if (result.source || result.source_url) {
+        const sourceUrl = result.source || result.source_url;
+        if (sourceUrl && 
+            (sourceUrl.includes('official-university-source.com') || 
+             sourceUrl.includes('example.com') || 
+             sourceUrl.includes('placeholder'))) {
+          console.warn('Invalid source URL - placeholder detected:', sourceUrl);
+          return false;
+        }
+      }
+
       return true;
     } catch (error) {
       console.error('Schema validation error:', error);

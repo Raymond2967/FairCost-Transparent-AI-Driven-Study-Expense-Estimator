@@ -20,6 +20,12 @@ export class TuitionAgent {
       // 使用智能搜索和推理获取学费信息
       const tuitionData = await this.getIntelligentTuitionAnalysis(userInput, universityData.website);
 
+      // 验证返回的数据是否合理
+      if (tuitionData.isEstimate || tuitionData.confidence < 0.7) {
+        // 如果是估算数据或置信度较低，使用后备估算
+        return await this.estimateTuition(university, program, level, country);
+      }
+
       return tuitionData;
 
     } catch (error) {
@@ -67,18 +73,20 @@ export class TuitionAgent {
       - If you cannot find the exact program, find the closest match within the same faculty/school
       - If only ranges are provided, use the midpoint
       - If multiple valid sources exist, use the most recent one
-      - ALWAYS provide the direct link to the source document
+      - ALWAYS provide the direct link to the source document - it must be a real URL, not a placeholder
       - NEVER invent or estimate tuition fees
       - ALWAYS return the TOTAL program cost, not per-credit, per-semester, or per-year costs
       - ALWAYS determine and return the program duration in years
       - CRITICAL: Make sure the program level matches EXACTLY what was requested (Undergraduate/Bachelor vs Graduate/Master)
       - If you find fees for the wrong program level, continue searching until you find the correct level
+      - If you cannot find reliable information, respond with isEstimate: true and confidence: 0.3
+      - CRITICAL: The source URL must be a real, accessible URL from the university website, not a placeholder like "official-university-source.com"
 
       Return ONLY a JSON object with this exact structure:
       {
         "total": 90000,
         "currency": "${country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD'}",
-        "source": "https://official-university-source.com/tuition-page",
+        "source": "https://www.university.edu/official/tuition-page",
         "isEstimate": false,
         "lastUpdated": "2025-01-15T10:30:00.000Z",
         "confidence": 0.95,
@@ -97,7 +105,7 @@ export class TuitionAgent {
         messages: [
           {
             role: 'system',
-            content: 'You are a precise data extraction and calculation expert. Always respond with valid JSON in the exact format specified. Accuracy is critical - do not invent or estimate numbers. You must return the TOTAL program cost and program duration. Pay EXTREMELY careful attention to ensuring the program level (Undergraduate vs Graduate/Master) matches exactly what was requested. If you accidentally find data for the wrong level, you must continue searching until you find the correct level.'
+            content: 'You are a precise data extraction and calculation expert. Always respond with valid JSON in the exact format specified. Accuracy is critical - do not invent or estimate numbers. You must return the TOTAL program cost and program duration. Pay EXTREMELY careful attention to ensuring the program level (Undergraduate vs Graduate/Master) matches exactly what was requested. If you accidentally find data for the wrong level, you must continue searching until you find the correct level. If you cannot find reliable information, respond with isEstimate: true and confidence: 0.3. CRITICAL: The source URL must be a real, accessible URL from the university website, not a placeholder like "official-university-source.com"'
           },
           {
             role: 'user',
@@ -113,7 +121,7 @@ export class TuitionAgent {
         `{
           "total": 90000,
           "currency": "${country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD'}",
-          "source": "https://official-university-source.com/tuition-page",
+          "source": "https://www.university.edu/official/tuition-page",
           "isEstimate": false,
           "lastUpdated": "2025-01-15T10:30:00.000Z",
           "confidence": 0.95,
@@ -122,6 +130,14 @@ export class TuitionAgent {
       );
 
       // 验证和清理数据
+      // 检查源URL是否是真实URL而不是占位符
+      if (!tuitionData.source || 
+          tuitionData.source.includes('official-university-source.com') ||
+          tuitionData.source.includes('example.com') ||
+          tuitionData.source.includes('placeholder')) {
+        throw new Error('Invalid source URL - placeholder detected');
+      }
+
       return {
         total: tuitionData.total,
         currency: tuitionData.currency,
@@ -169,7 +185,7 @@ export class TuitionAgent {
         messages: [
           {
             role: 'system',
-            content: 'You are an education cost analyst. Provide realistic tuition estimates based on market data and institutional knowledge. Return only structured data with TOTAL program cost and program duration.'
+            content: 'You are an education cost analyst. Provide realistic tuition estimates based on market data and institutional knowledge. Return only structured data with TOTAL program cost and program duration. If you can find any official university data, use that instead of estimates.'
           },
           {
             role: 'user',
@@ -232,7 +248,13 @@ export class TuitionAgent {
         confidence = 0.4;
       }
 
-      const source = estimatedData?.source_url || `内部估算基于${university}同类项目市场数据`;
+      // 验证源URL是否是真实的URL而不是占位符
+      let source = estimatedData?.source_url || `基于${university}同类项目市场数据的估算`;
+      if (source.includes('official-university-source.com') || 
+          source.includes('example.com') || 
+          source.includes('placeholder')) {
+        source = `基于${university}同类项目市场数据的估算`;
+      }
 
       return {
         total: estimatedData?.estimated_tuition || fallbackAmount,
@@ -261,7 +283,7 @@ export class TuitionAgent {
       return {
         total: levelData.amount,
         currency: country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD',
-        source: '基于市场平均数据的紧急估算',
+        source: `基于${country}国家平均数据的紧急估算`,
         isEstimate: true,
         lastUpdated: new Date().toISOString(),
         confidence: 0.3, // 紧急估算置信度较低
