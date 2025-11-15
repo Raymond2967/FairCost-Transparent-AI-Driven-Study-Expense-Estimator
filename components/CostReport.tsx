@@ -609,10 +609,8 @@ export default function CostReport({ report, onBack }: CostReportProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">月度总计</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrencyRange(
-                      (livingCosts.accommodation?.monthlyRange?.min || 0) + 
-                      (livingCosts.total.range.min - (livingCosts.accommodation?.monthlyRange?.min || 0) * 12) / 12,
-                      (livingCosts.accommodation?.monthlyRange?.max || 0) + 
-                      (livingCosts.total.range.max - (livingCosts.accommodation?.monthlyRange?.max || 0) * 12) / 12,
+                      (livingCosts.accommodation?.monthlyRange?.min || 0) + livingCosts.total.range.min,
+                      (livingCosts.accommodation?.monthlyRange?.max || 0) + livingCosts.total.range.max,
                       livingCosts.currency
                     )}
                   </td>
