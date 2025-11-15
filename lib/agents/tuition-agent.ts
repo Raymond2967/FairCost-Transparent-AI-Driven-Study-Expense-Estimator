@@ -1,7 +1,7 @@
 import { openRouterClient } from '../openrouter';
 import { safeLLMClient } from '../safe-llm-client';
 import { UserInput, TuitionData } from '@/types';
-import { US_UNIVERSITIES, AU_UNIVERSITIES, SEARCH_MODEL } from '../constants';
+import { US_UNIVERSITIES, AU_UNIVERSITIES, UK_UNIVERSITIES, CA_UNIVERSITIES, DE_UNIVERSITIES, SEARCH_MODEL } from '../constants';
 
 export class TuitionAgent {
   async queryTuition(userInput: UserInput): Promise<TuitionData> {
@@ -9,7 +9,7 @@ export class TuitionAgent {
 
     try {
       // 直接从常量中获取大学网站信息，不依赖programs字段
-      const universityData = [...US_UNIVERSITIES, ...AU_UNIVERSITIES].find(
+      const universityData = [...US_UNIVERSITIES, ...AU_UNIVERSITIES, ...UK_UNIVERSITIES, ...CA_UNIVERSITIES, ...DE_UNIVERSITIES].find(
         uni => uni.name === university
       );
 
@@ -77,7 +77,7 @@ export class TuitionAgent {
       Return ONLY a JSON object with this exact structure:
       {
         "total": 90000,
-        "currency": "${country === 'US' ? 'USD' : 'AUD'}",
+        "currency": "${country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD'}",
         "source": "https://official-university-source.com/tuition-page",
         "isEstimate": false,
         "lastUpdated": "2025-01-15T10:30:00.000Z",
@@ -112,7 +112,7 @@ export class TuitionAgent {
         analysisResponse,
         `{
           "total": 90000,
-          "currency": "${country === 'US' ? 'USD' : 'AUD'}",
+          "currency": "${country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD'}",
           "source": "https://official-university-source.com/tuition-page",
           "isEstimate": false,
           "lastUpdated": "2025-01-15T10:30:00.000Z",
@@ -142,7 +142,7 @@ export class TuitionAgent {
     university: string,
     program: string,
     level: 'undergraduate' | 'graduate',
-    country: 'US' | 'AU'
+    country: 'US' | 'AU' | 'UK' | 'CA' | 'DE'
   ): Promise<TuitionData> {
     try {
       const estimationPrompt = `As an expert on international education costs, estimate the TOTAL tuition fees for the entire program:
@@ -202,12 +202,24 @@ export class TuitionAgent {
         AU: {
           undergraduate: { public: 35000, private: 45000, duration: 3 },
           graduate: { public: 40000, private: 50000, duration: 2 }
+        },
+        UK: {
+          undergraduate: { public: 25000, private: 40000, duration: 3 },
+          graduate: { public: 30000, private: 45000, duration: 1 }
+        },
+        CA: {
+          undergraduate: { public: 20000, private: 35000, duration: 4 },
+          graduate: { public: 15000, private: 30000, duration: 2 }
+        },
+        DE: {
+          undergraduate: { public: 2000, private: 25000, duration: 3 },
+          graduate: { public: 2000, private: 30000, duration: 2 }
         }
       };
 
       const levelData = defaultEstimates[country][level];
       const fallbackAmount = levelData.private * levelData.duration; // 总费用 = 年费用 × 年数
-      const currency = country === 'US' ? 'USD' : 'AUD';
+      const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD';
       const fallbackDuration = levelData.duration;
 
       // 确定置信度
@@ -224,7 +236,7 @@ export class TuitionAgent {
 
       return {
         total: estimatedData?.estimated_tuition || fallbackAmount,
-        currency: currency as 'USD' | 'AUD',
+        currency: currency as 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR',
         source: source,
         isEstimate: true,
         lastUpdated: new Date().toISOString(),
@@ -238,14 +250,17 @@ export class TuitionAgent {
       // 最终后备方案
       const emergency_estimates = {
         'US': { 'undergraduate': { amount: 180000, duration: 4 }, 'graduate': { amount: 110000, duration: 2 } },
-        'AU': { 'undergraduate': { amount: 120000, duration: 3 }, 'graduate': { amount: 90000, duration: 2 } }
+        'AU': { 'undergraduate': { amount: 120000, duration: 3 }, 'graduate': { amount: 90000, duration: 2 } },
+        'UK': { 'undergraduate': { amount: 100000, duration: 3 }, 'graduate': { amount: 60000, duration: 1 } },
+        'CA': { 'undergraduate': { amount: 80000, duration: 4 }, 'graduate': { amount: 50000, duration: 2 } },
+        'DE': { 'undergraduate': { amount: 15000, duration: 3 }, 'graduate': { amount: 20000, duration: 2 } }
       };
 
       const levelData = emergency_estimates[country][level];
 
       return {
         total: levelData.amount,
-        currency: country === 'US' ? 'USD' : 'AUD',
+        currency: country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD',
         source: '基于市场平均数据的紧急估算',
         isEstimate: true,
         lastUpdated: new Date().toISOString(),

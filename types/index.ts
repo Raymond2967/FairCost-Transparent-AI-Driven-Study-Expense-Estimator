@@ -1,7 +1,7 @@
 // 用户输入数据接口
 export interface UserInput {
   // 必填字段
-  country: 'US' | 'AU';
+  country: 'US' | 'AU' | 'UK' | 'CA' | 'DE';
   university: string;
   program: string;
   level: 'undergraduate' | 'graduate';
@@ -19,7 +19,7 @@ export interface UserInput {
 // 学费数据接口
 export interface TuitionData {
   total: number;               // 项目总学费金额
-  currency: 'USD' | 'AUD';
+  currency: 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR';
   source: string;
   isEstimate: boolean;
   lastUpdated: string;
@@ -33,7 +33,7 @@ export interface AccommodationCost {
     min: number;
     max: number;
   };
-  currency: 'USD' | 'AUD';
+  currency: 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR';
   source: string;
   confidence?: number;
   reasoning?: string;
@@ -45,7 +45,7 @@ export interface LivingCosts {
     range: { min: number; max: number };
   };
   accommodation: AccommodationCost;
-  currency: 'USD' | 'AUD';
+  currency: 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR';
   period: 'monthly';
   sources: string[];
   confidence?: number;
@@ -68,7 +68,7 @@ export interface OtherCosts {
     source: string;
     confidence?: number; // 置信度 (0-1)
   };
-  currency: 'USD' | 'AUD';
+  currency: 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR';
 }
 
 // 完整估算报告接口
@@ -91,7 +91,7 @@ export interface CostEstimateReport {
       range: { min: number; max: number };
       duration: number;
     };
-    currency: 'USD' | 'AUD';
+    currency: 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR';
     breakdown: {
       tuition: number;
       living: number;

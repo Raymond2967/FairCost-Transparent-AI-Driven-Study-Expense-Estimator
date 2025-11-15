@@ -43,7 +43,7 @@ export interface AccommodationCost {
     min: number;
     max: number;
   };
-  currency: 'USD' | 'AUD';
+  currency: 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR';
   source: string;
   confidence?: number;
   reasoning?: string;
@@ -198,7 +198,7 @@ export class AccommodationAgent {
           min: Math.round(selectedRange.min),
           max: Math.round(selectedRange.max)
         },
-        currency: extractedData.currency as 'USD' | 'AUD',
+        currency: extractedData.currency as 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR',
         source: extractedData.source,
         confidence: extractedData.confidence,
         reasoning: `Based on ${bedrooms} bedroom ${locationPreference === 'cityCentre' ? 'city centre' : 'outside city centre'} apartment data from Numbeo. ${accommodation === 'shared' ? 'Price divided by 2 for shared accommodation.' : accommodation === 'dormitory' ? 'Price reduced by 30% for dormitory accommodation.' : ''} ${extractedData.reasoning || ''}`
@@ -253,13 +253,55 @@ export class AccommodationAgent {
           studio: { min: 900, max: 1400 },
           apartment: { min: 1300, max: 2200 }
         }
+      },
+      UK: {
+        cityCentre: {
+          dormitory: { min: 600, max: 1100 },
+          shared: { min: 400, max: 700 },
+          studio: { min: 900, max: 1500 },
+          apartment: { min: 1400, max: 2500 }
+        },
+        outsideCityCentre: {
+          dormitory: { min: 500, max: 900 },
+          shared: { min: 300, max: 600 },
+          studio: { min: 700, max: 1200 },
+          apartment: { min: 1100, max: 2000 }
+        }
+      },
+      CA: {
+        cityCentre: {
+          dormitory: { min: 700, max: 1200 },
+          shared: { min: 500, max: 800 },
+          studio: { min: 1100, max: 1700 },
+          apartment: { min: 1600, max: 2800 }
+        },
+        outsideCityCentre: {
+          dormitory: { min: 600, max: 1000 },
+          shared: { min: 400, max: 700 },
+          studio: { min: 900, max: 1400 },
+          apartment: { min: 1300, max: 2200 }
+        }
+      },
+      DE: {
+        cityCentre: {
+          dormitory: { min: 300, max: 600 },
+          shared: { min: 350, max: 650 },
+          studio: { min: 500, max: 900 },
+          apartment: { min: 700, max: 1300 }
+        },
+        outsideCityCentre: {
+          dormitory: { min: 250, max: 500 },
+          shared: { min: 300, max: 550 },
+          studio: { min: 400, max: 750 },
+          apartment: { min: 600, max: 1100 }
+        }
       }
     };
     
     const countryRanges = baseRanges[country];
     const locationRanges = countryRanges?.[locationPreference] || countryRanges?.cityCentre;
     const range = locationRanges?.[accommodation] || locationRanges?.shared;
-    const currency = country === 'US' ? 'USD' : 'AUD';
+    const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD';
     
     // 为后备估算生成一个更具体的URL
     const baseUrl = 'https://www.numbeo.com/cost-of-living/';

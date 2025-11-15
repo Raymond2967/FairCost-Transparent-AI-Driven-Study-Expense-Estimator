@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { UserInput, EstimationProgress } from '@/types';
-import { US_UNIVERSITIES, AU_UNIVERSITIES, CITIES } from '@/lib/constants';
+import { US_UNIVERSITIES, AU_UNIVERSITIES, UK_UNIVERSITIES, CA_UNIVERSITIES, DE_UNIVERSITIES, CITIES } from '@/lib/constants';
 
 interface CostEstimationFormProps {
   onSubmit: (userInput: UserInput) => void;
@@ -35,7 +35,7 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
 
     // 当大学改变时，更新城市
     if (field === 'university') {
-      const allUniversities = [...US_UNIVERSITIES, ...AU_UNIVERSITIES];
+      const allUniversities = [...US_UNIVERSITIES, ...AU_UNIVERSITIES, ...UK_UNIVERSITIES, ...CA_UNIVERSITIES, ...DE_UNIVERSITIES];
       const selectedUni = allUniversities.find(uni => uni.name === value);
       if (selectedUni) {
         setFormData(prev => ({ ...prev, city: selectedUni.city }));
@@ -69,7 +69,12 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
     onSubmit(formData as UserInput);
   };
 
-  const currentUniversities = formData.country === 'US' ? US_UNIVERSITIES : AU_UNIVERSITIES;
+  const currentUniversities = formData.country === 'US' ? US_UNIVERSITIES : 
+                             formData.country === 'AU' ? AU_UNIVERSITIES :
+                             formData.country === 'UK' ? UK_UNIVERSITIES :
+                             formData.country === 'CA' ? CA_UNIVERSITIES :
+                             formData.country === 'DE' ? DE_UNIVERSITIES : [];
+                             
   const currentCities = CITIES.filter(city => city.country === formData.country);
 
   return (
@@ -108,12 +113,15 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
               </label>
               <select
                 value={formData.country || ''}
-                onChange={(e) => handleInputChange('country', e.target.value as 'US' | 'AU')}
+                onChange={(e) => handleInputChange('country', e.target.value as 'US' | 'AU' | 'UK' | 'CA' | 'DE')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 disabled={isLoading}
               >
                 <option value="US">美国</option>
                 <option value="AU">澳大利亚</option>
+                <option value="UK">英国</option>
+                <option value="CA">加拿大</option>
+                <option value="DE">德国</option>
               </select>
               {errors.country && <p className="text-red-500 text-sm mt-1">{errors.country}</p>}
             </div>
