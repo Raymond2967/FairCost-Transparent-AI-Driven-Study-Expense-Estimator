@@ -1,60 +1,39 @@
 import { openRouterClient } from '../openrouter';
-import { safeLLMClient } from '../safe-llm-client';
-import { UserInput, LivingCosts } from '@/types';
+import { UserInput, LivingCosts, AccommodationCost } from '@/types';
 import { CITIES, SEARCH_MODEL } from '../constants';
-import { AccommodationAgent } from '../agents/accommodation-agent';
 
 // Define the expected output structure for LLM extraction
 const NON_ACCOMMODATION_EXTRACTION_SCHEMA = `{
-  "monthly": 1380,
+  "monthlyCost": 1668.8,
   "currency": "USD",
-  "source": "https://www.numbeo.com/cost-of-living/",
-  "confidence": 0.8,
-  "reasoning": "Based on Cost of Living Index (Excl. Rent) from numbeo.com"
+  "source": "https://www.numbeo.com/cost-of-living/in/New-York",
+  "confidence": 0.9,
+  "reasoning": "Based on Cost of Living data from numbeo.com"
 }`;
 
 export class LivingCostAgent {
-  private accommodationAgent: AccommodationAgent;
 
-  constructor() {
-    this.accommodationAgent = new AccommodationAgent();
-  }
-
-  async analyzeLivingCosts(userInput: UserInput): Promise<LivingCosts> {
-    const { country, city, lifestyle } = userInput;
+  async analyzeLivingCosts(userInput: UserInput): Promise<Pick<LivingCosts, 'total' | 'currency' | 'period' | 'sources' | 'confidence'> & { accommodation?: AccommodationCost }> {
+    const { country, city } = userInput;
 
     try {
-      // 获取城市基础数据
-      const cityData = CITIES.find(c => c.name === city && c.country === country);
-
-      if (!cityData) {
-        throw new Error(`City data not found for ${city}, ${country}`);
-      }
-
-      // 获取非住宿生活成本从Numbeo
-      const nonAccommodationCost = await this.getNonAccommodationCostFromNumbeo(city!, country);
-
-      // 获取住宿成本（使用单独的agent）
-      const accommodationCost = await this.accommodationAgent.queryAccommodationCosts(userInput);
+      // 获取目标城市的单人生活成本（不含房租）
+      const costData = await this.getCostOfLivingData(city!, country);
 
       const currency = country === 'US' ? 'USD' : 'AUD';
 
       return {
-        accommodation: accommodationCost,
         total: {
-          amount: nonAccommodationCost.monthly,
+          amount: costData.monthlyCost,
           range: {
-            min: Math.round(nonAccommodationCost.monthly * 0.8),
-            max: Math.round(nonAccommodationCost.monthly * 1.2)
+            min: Math.round(costData.monthlyCost * 0.8),
+            max: Math.round(costData.monthlyCost * 1.2)
           }
         },
         currency,
         period: 'monthly',
-        sources: [
-          nonAccommodationCost.source,
-          accommodationCost.source
-        ].filter(Boolean) as string[],
-        confidence: nonAccommodationCost.confidence || 0.5
+        sources: [costData.source].filter(Boolean) as string[],
+        confidence: costData.confidence || 0.5
       };
 
     } catch (error) {
@@ -64,33 +43,32 @@ export class LivingCostAgent {
     }
   }
 
-  private async getNonAccommodationCostFromNumbeo(city: string, country: 'US' | 'AU'): Promise<{ monthly: number; currency: 'USD' | 'AUD'; source: string; confidence?: number; reasoning?: string }> {
+  private async getCostOfLivingData(targetCity: string, country: 'US' | 'AU'): Promise<{ 
+    monthlyCost: number;
+    currency: 'USD' | 'AUD'; 
+    source: string; 
+    confidence?: number; 
+    reasoning?: string 
+  }> {
     try {
-      // 专注于从numbeo.com获取非住宿生活成本指数
-      const searchQuery = `site:numbeo.com \"Cost of Living Index (Excl. Rent)\" \"${city}\"`;
-      
       // 构建分析提示词
-      const analysisPrompt = `You are a cost of living analysis expert. Your task is to find the Cost of Living Index (Excluding Rent) for ${city}, ${country} from numbeo.com.
+      const analysisPrompt = `You are a cost of living analysis expert. Your task is to find the estimated monthly costs for a single person excluding rent for ${targetCity} from numbeo.com.
       
-      CRITICAL INSTRUCTION: Only use data from numbeo.com. Find the exact "Cost of Living Index (Excl. Rent)" value for the specified city.
-      
-      Current Year: ${new Date().getFullYear()}
-      
+      CRITICAL INSTRUCTION: Only use data from numbeo.com. Find the exact "estimated monthly costs for a single person excluding rent" for ${targetCity}.
+
       Instructions:
-      1. Search for the most recent Cost of Living Index (Excl. Rent) for ${city}, ${country} on numbeo.com
-      2. Extract the index value and convert it to an estimated monthly cost in local currency
-      3. Use New York as baseline (index 100 = $1380/month for US, $1180/month for AU)
-      4. Calculate estimated monthly cost: (city_index / 100) * baseline_cost
-      5. Return the monthly amount, currency, source URL, confidence level, and brief reasoning
-      6. Return ONLY a JSON object with the exact structure specified below
-      
+      1. Search for the most recent "estimated monthly costs for a single person excluding rent" for ${targetCity} on numbeo.com
+      2. Extract the exact cost value for the city
+      3. Return the cost value, currency, source URL, confidence level, and brief reasoning
+      4. Return ONLY a JSON object with the exact structure specified below
+
       CRITICAL RULES:
       - MUST provide a real, accessible URL from numbeo.com as the source
       - NEVER invent or estimate numbers without basis
       - If multiple values exist, use the most recent one
-      - For confidence: direct data from numbeo = 0.8-0.9, calculated from index = 0.7-0.8
-      - ALWAYS return the result in the user's country currency (USD for US, AUD for AU)
-      
+      - For confidence: direct data from numbeo = 0.8-0.9
+      - ALWAYS return the result in the user's target country currency (USD for US, AUD for AU)
+
       Return ONLY a JSON object with this exact structure:
       ${NON_ACCOMMODATION_EXTRACTION_SCHEMA}
       `;
@@ -119,7 +97,7 @@ export class LivingCostAgent {
 
       // Validate and return the result
       return {
-        monthly: Math.round(extractedData.monthly),
+        monthlyCost: Number(extractedData.monthlyCost),
         currency: extractedData.currency as 'USD' | 'AUD',
         source: extractedData.source,
         confidence: extractedData.confidence,
@@ -129,9 +107,8 @@ export class LivingCostAgent {
     } catch (error) {
       console.log('Real-time non-accommodation data unavailable, using estimates');
       // Return fallback based on country
-      const baseline = country === 'US' ? 1380 : 1180;
       return {
-        monthly: baseline,
+        monthlyCost: country === 'US' ? 1500 : 1200,
         currency: country === 'US' ? 'USD' : 'AUD',
         source: 'https://www.numbeo.com/cost-of-living/',
         confidence: 0.6,
@@ -140,23 +117,20 @@ export class LivingCostAgent {
     }
   }
 
-  private getFallbackLivingCosts(userInput: UserInput): LivingCosts {
+  private getFallbackLivingCosts(userInput: UserInput): Pick<LivingCosts, 'total' | 'currency' | 'period' | 'sources' | 'confidence'> & { accommodation?: AccommodationCost } {
     const { country, lifestyle } = userInput;
     
-    // 基础月度生活成本（不含住宿）
-    const baseMonthlyCost = country === 'US' ? 1380 : 1180;
+    // 默认月度生活成本
+    const defaultMonthlyCost = country === 'US' ? 1500 : 1200;
+    
     const multiplier = lifestyle === 'economy' ? 0.8 : lifestyle === 'comfortable' ? 1.25 : 1.0;
 
     // 应用生活方式乘数
-    const monthlyCost = Math.round(baseMonthlyCost * multiplier);
-
-    // 获取住宿成本
-    const accommodationCost = this.accommodationAgent.getFallbackAccommodationCost(userInput);
+    const monthlyCost = Math.round(defaultMonthlyCost * multiplier);
 
     const currency = country === 'US' ? 'USD' : 'AUD';
 
     return {
-      accommodation: accommodationCost,
       total: {
         amount: monthlyCost,
         range: { 

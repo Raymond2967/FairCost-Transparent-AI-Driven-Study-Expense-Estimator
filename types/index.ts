@@ -39,11 +39,11 @@ export interface AccommodationCost {
 }
 
 export interface LivingCosts {
-  accommodation: AccommodationCost;
   total: {
     amount: number;
     range: { min: number; max: number };
   };
+  accommodation: AccommodationCost;
   currency: 'USD' | 'AUD';
   period: 'monthly';
   sources: string[];

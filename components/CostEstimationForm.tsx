@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { UserInput } from '@/types';
+import { UserInput, EstimationProgress } from '@/types';
 import { US_UNIVERSITIES, AU_UNIVERSITIES, CITIES } from '@/lib/constants';
 
 interface CostEstimationFormProps {
   onSubmit: (userInput: UserInput) => void;
   isLoading?: boolean;
+  progress?: EstimationProgress;
 }
 
 export default function CostEstimationForm({ onSubmit, isLoading, progress }: CostEstimationFormProps) {
@@ -172,7 +173,7 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
           {/* 城市 */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              城市 <span className="text-red-500">*</span>
+              目标城市 <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.city || ''}
@@ -189,6 +190,7 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
             </select>
             {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city}</p>}
           </div>
+
 
           {/* 生活方式偏好 */}
           <div className="space-y-6">
@@ -252,44 +254,6 @@ export default function CostEstimationForm({ onSubmit, isLoading, progress }: Co
                   ))}
                 </div>
                 {errors.accommodation && <p className="text-red-500 text-sm mt-1">{errors.accommodation}</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* 可选偏好 */}
-          <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-gray-900">可选偏好</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">饮食习惯</label>
-                <select
-                  value={formData.diet || 'normal'}
-                  onChange={(e) => handleInputChange('diet', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={isLoading}
-                >
-                  <option value="normal">普通饮食</option>
-                  <option value="vegetarian">素食主义</option>
-                  <option value="halal">清真饮食</option>
-                  <option value="kosher">犹太洁食</option>
-                  <option value="custom">特殊需求</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">交通偏好</label>
-                <select
-                  value={formData.transportation || 'public'}
-                  onChange={(e) => handleInputChange('transportation', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={isLoading}
-                >
-                  <option value="walking">步行为主</option>
-                  <option value="public">公共交通</option>
-                  <option value="bike">自行车</option>
-                  <option value="car">私家车</option>
-                </select>
               </div>
             </div>
           </div>

@@ -30,7 +30,9 @@ export class ReportAgent {
           currency: tuition.currency,
           breakdown: {
             tuition: tuition.total,
-            living: livingCosts.total.amount * 12,
+            living: (livingCosts.total.amount + 
+                    ((livingCosts.accommodation?.monthlyRange?.min || 0) + 
+                     (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2) * 12,
             other: (otherCosts.applicationFee?.amount || 0) +
                    (otherCosts.visaFee?.amount || 0) +
                    (otherCosts.healthInsurance?.amount || 0)
@@ -56,7 +58,9 @@ export class ReportAgent {
           currency: tuition.currency,
           breakdown: {
             tuition: tuition.total,
-            living: livingCosts.total.amount * 12,
+            living: (livingCosts.total.amount + 
+                    ((livingCosts.accommodation?.monthlyRange?.min || 0) + 
+                     (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2) * 12,
             other: (otherCosts.applicationFee?.amount || 0) +
                    (otherCosts.visaFee?.amount || 0) +
                    (otherCosts.healthInsurance?.amount || 0)
@@ -81,8 +85,11 @@ export class ReportAgent {
     // 计算年度学费
     const tuitionAmount = tuition.total / (tuition.programDuration || 1);
     
-    // 计算年度生活费 (月费用 * 12)
-    const livingCostAmount = livingCosts.total.amount * 12;
+    // 计算年度生活费 (非住宿月费用 * 12) + (住宿月费用 * 12)
+    const nonAccommodationCost = livingCosts.total.amount * 12;
+    const accommodationCost = ((livingCosts.accommodation?.monthlyRange?.min || 0) + 
+                              (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2 * 12;
+    const livingCostAmount = nonAccommodationCost + accommodationCost;
     
     // 其他费用通常是一次性费用，按年分摊
     const otherCostAmount = (
@@ -110,10 +117,13 @@ export class ReportAgent {
     // 计算月度学费
     const tuitionAmount = tuition.total / (tuition.programDuration || 1) / 12;
     
-    // 月度生活费
-    const livingCostAmount = livingCosts.total.amount;
+    // 计算月度生活费 (非住宿月费用) + (住宿月费用)
+    const nonAccommodationCost = livingCosts.total.amount;
+    const accommodationCost = ((livingCosts.accommodation?.monthlyRange?.min || 0) + 
+                              (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2;
+    const livingCostAmount = nonAccommodationCost + accommodationCost;
     
-    // 其他费用按月分摊
+    // 其他费用通常是一次性费用，按月分摊
     const otherCostAmount = (
       (otherCosts.applicationFee?.amount || 0) +
       (otherCosts.visaFee?.amount || 0) +
@@ -131,10 +141,6 @@ export class ReportAgent {
     };
   }
 
-  private extractDurationInYears(programDuration: number | undefined): number {
-    return programDuration && programDuration > 0 ? programDuration : 4;
-  }
-
   private calculateTotalCost(
     tuition: TuitionData,
     livingCosts: LivingCosts,
@@ -144,8 +150,11 @@ export class ReportAgent {
     // 学费总额
     const tuitionAmount = tuition.total;
     
-    // 生活费总额 (月费用 * 12 * 年数)
-    const livingCostAmount = livingCosts.total.amount * 12 * programDuration;
+    // 生活费总额 (非住宿月费用 * 12 * 年数) + (住宿月费用 * 12 * 年数)
+    const nonAccommodationCost = livingCosts.total.amount * 12 * programDuration;
+    const accommodationCost = ((livingCosts.accommodation?.monthlyRange?.min || 0) + 
+                              (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2 * 12 * programDuration;
+    const livingCostAmount = nonAccommodationCost + accommodationCost;
     
     // 其他费用总额 (一次性费用)
     const otherCostAmount = (
@@ -161,47 +170,48 @@ export class ReportAgent {
       range: {
         min: Math.round(totalAmount * 0.9),
         max: Math.round(totalAmount * 1.1)
-      },
-      duration: programDuration
+      }
     };
   }
 
+  private extractDurationInYears(programDuration: number): number {
+    return programDuration || 1; // 确保至少为1年，避免除零错误
+  }
+
   private async generateRecommendations(
-    userInput: UserInput, 
-    reportData: CostEstimateReport
+    userInput: UserInput,
+    currentReport: CostEstimateReport
   ): Promise<string[]> {
     try {
-      // 构建提示词给AI生成个性化建议
-      const prompt = `作为一名留学费用规划专家，请基于以下用户信息和费用估算结果，提供5-8个实用的省钱建议：
+      // Generate personalized recommendations using LLM
+      const prompt = `Based on the following cost estimate report for a student planning to study ${userInput.program} in ${userInput.city}, ${userInput.country}, provide 3-5 specific, actionable recommendations for saving money or optimizing their budget:
 
-用户信息：
-- 目标国家：${userInput.country === 'US' ? '美国' : '澳大利亚'}
-- 大学：${userInput.university}
-- 专业：${userInput.program}
-- 学位：${userInput.level === 'undergraduate' ? '本科' : '硕士'}
-- 城市：${userInput.city}
-- 生活方式：${userInput.lifestyle === 'economy' ? '经济型' : userInput.lifestyle === 'comfortable' ? '舒适型' : '标准型'}
-- 住宿偏好：${userInput.accommodation === 'dormitory' ? '宿舍' : userInput.accommodation === 'apartment' ? '公寓' : '其他'}
+      Report Summary:
+      - Total Program Cost: $${currentReport.summary.totalCost.amount}
+      - Annual Living Cost: $${currentReport.summary.totalAnnualCost.amount}
+      - Accommodation Type: ${userInput.accommodation}
+      - Lifestyle Preference: ${userInput.lifestyle}
 
-费用估算结果：
-- 年度总费用：${reportData.summary.totalAnnualCost.amount} ${reportData.summary.currency}
-- 学费：${reportData.summary.breakdown.tuition} ${reportData.summary.currency}
-- 生活费：${reportData.summary.breakdown.living} ${reportData.summary.currency}
-- 其他费用：${reportData.summary.breakdown.other} ${reportData.summary.currency}
+      Please provide practical advice in Chinese about:
+      1. Accommodation options
+      2. Daily expense management
+      3. Part-time work opportunities (if allowed)
+      4. Student discounts and benefits
+      5. Transportation and other cost-saving measures
 
-请提供具体、可执行的建议，涵盖住宿、饮食、交通、学习用品等方面。要求：
-1. 建议必须与用户的选择和费用结构相关
-2. 避免给出用户已经选择的建议（如用户已选择宿舍，不要建议住宿舍）
-3. 每条建议一行，不要使用任何格式符号
-4. 用中文回复`;
+      Return ONLY a JSON array of 3-5 recommendation strings in Chinese.`;
 
-      // 调用AI生成个性化建议
-      const response = await openRouterClient.chat({
-        model: REPORT_MODEL, // 使用Claude模型生成报告
+      // 设置超时控制
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Recommendation generation timeout')), 30000) // 30秒超时
+      );
+
+      const llmPromise = openRouterClient.chat({
+        model: REPORT_MODEL,
         messages: [
           {
             role: 'system',
-            content: 'You are a study abroad financial advisor. Generate comprehensive, well-structured reports in Markdown format based on the provided JSON data.'
+            content: 'You are a helpful study abroad advisor providing practical budgeting advice in Chinese.'
           },
           {
             role: 'user',
@@ -209,27 +219,31 @@ export class ReportAgent {
           }
         ],
         temperature: 0.7,
-        max_tokens: 2000
+        max_tokens: 1000
       });
 
-      // 解析AI响应为建议列表
-      return response.split('\n').filter(line => line.trim() !== '').map(line => line.trim());
+      const response = await Promise.race([llmPromise, timeoutPromise]) as any;
+
+      // Try to extract JSON array from response
+      const recommendationsMatch = response.choices[0]?.message?.content?.match(/\[[\s\S]*\]/);
+      if (recommendationsMatch) {
+        return JSON.parse(recommendationsMatch[0]);
+      }
+      
+      return [
+        "建议申请校内宿舍以获得更优惠的价格",
+        "可以通过做饭和合理规划饮食来节省生活费用",
+        "积极寻找允许的校内兼职工作机会",
+        "充分利用学生身份享受各种折扣和优惠"
+      ];
     } catch (error) {
       console.error('Recommendation generation failed:', error);
-      
-      // 紧急备用建议
-      const fallbackRecommendations = [
-        '💰 合理规划月度预算，避免不必要支出',
-        '🏠 考虑与室友合租以降低住宿成本',
-        '🛒 自己做饭，减少外出就餐频率',
-        '📚 充分利用学校图书馆和免费学习资源',
-        '🚌 使用学生公交卡享受交通折扣',
-        '🎉 参加学校免费活动，降低娱乐支出',
-        '🛍️ 购买二手教材和学习用品',
-        '💡 申请奖学金和助学金以减轻经济负担'
+      return [
+        "建议申请校内宿舍以获得更优惠的价格",
+        "可以通过做饭和合理规划饮食来节省生活费用",
+        "积极寻找允许的校内兼职工作机会",
+        "充分利用学生身份享受各种折扣和优惠"
       ];
-
-      return fallbackRecommendations;
     }
   }
 
@@ -238,26 +252,21 @@ export class ReportAgent {
     livingCosts: LivingCosts,
     otherCosts: OtherCosts
   ): string[] {
-    const sources = new Set<string>();
+    const sources: string[] = [];
     
-    // 收集学费来源
-    if (tuition.source) sources.add(tuition.source);
+    // Collect tuition sources
+    if (tuition.source) sources.push(tuition.source);
     
-    // 收集生活费来源
-    if (livingCosts.sources) {
-      livingCosts.sources.forEach(source => sources.add(source));
-    }
+    // Collect living cost sources
+    if (livingCosts.sources) sources.push(...livingCosts.sources);
+    if (livingCosts.accommodation?.source) sources.push(livingCosts.accommodation.source);
     
-    // 如果accommodation有独立来源，也添加
-    if (livingCosts.accommodation?.source) {
-      sources.add(livingCosts.accommodation.source);
-    }
+    // Collect other cost sources
+    if (otherCosts.applicationFee?.source) sources.push(otherCosts.applicationFee.source);
+    if (otherCosts.visaFee?.source) sources.push(otherCosts.visaFee.source);
+    if (otherCosts.healthInsurance?.source) sources.push(otherCosts.healthInsurance.source);
     
-    // 收集其他费用来源
-    if (otherCosts.applicationFee?.source) sources.add(otherCosts.applicationFee.source);
-    if (otherCosts.visaFee?.source) sources.add(otherCosts.visaFee.source);
-    if (otherCosts.healthInsurance?.source) sources.add(otherCosts.healthInsurance.source);
-
-    return Array.from(sources);
+    // Remove duplicates and empty values
+    return Array.from(new Set(sources.filter(source => source)));
   }
 }

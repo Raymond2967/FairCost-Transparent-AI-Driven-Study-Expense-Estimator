@@ -15,6 +15,7 @@ export default function Home() {
     setIsLoading(true);
     setError(null);
     setReport(null);
+    setProgress(undefined);
 
     try {
       // 启动估算任务
@@ -34,21 +35,28 @@ export default function Home() {
 
       // 轮询获取进度
       const pollProgress = async () => {
-        const progressResponse = await fetch(`/api/estimate?taskId=${taskId}`);
-        const progressData = await progressResponse.json();
+        try {
+          const progressResponse = await fetch(`/api/estimate?taskId=${taskId}`);
+          const progressData = await progressResponse.json();
 
-        if (progressData.success) {
-          if (progressData.data.status === 'in_progress') {
-            setProgress(progressData.data.progress);
-            setTimeout(pollProgress, 1000); // 每秒轮询一次
+          if (progressData.success) {
+            if (progressData.data.status === 'in_progress') {
+              setProgress(progressData.data.progress);
+              setTimeout(pollProgress, 1000); // 每秒轮询一次
+            } else {
+              // 任务完成
+              setReport(progressData.data);
+              setProgress(undefined);
+              setIsLoading(false);
+            }
           } else {
-            // 任务完成
-            setReport(progressData.data);
-            setProgress(undefined);
-            setIsLoading(false);
+            throw new Error(progressData.error || '获取进度失败');
           }
-        } else {
-          throw new Error(progressData.error || '获取进度失败');
+        } catch (err) {
+          console.error('Polling error:', err);
+          setError('获取进度时发生错误，请重试');
+          setProgress(undefined);
+          setIsLoading(false);
         }
       };
 
@@ -65,6 +73,7 @@ export default function Home() {
   const handleBackToForm = () => {
     setReport(null);
     setError(null);
+    setProgress(undefined);
   };
 
   return (

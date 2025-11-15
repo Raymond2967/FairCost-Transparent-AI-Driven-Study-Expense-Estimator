@@ -3,7 +3,7 @@ import { TuitionAgent } from './agents/tuition-agent';
 import { LivingCostAgent } from './agents/living-cost-agent';
 import { OtherCostsAgent } from './agents/other-costs-agent';
 import { ReportAgent } from './agents/report-agent';
-import { UserInput, CostEstimateReport } from '@/types';
+import { AccommodationAgent } from './agents/accommodation-agent';
 
 export type ProgressCallback = (progress: EstimationProgress) => void;
 
@@ -12,12 +12,14 @@ export class EstimationCoordinator {
   private livingCostAgent: LivingCostAgent;
   private otherCostsAgent: OtherCostsAgent;
   private reportAgent: ReportAgent;
+  private accommodationAgent: AccommodationAgent;
 
   constructor() {
     this.tuitionAgent = new TuitionAgent();
     this.livingCostAgent = new LivingCostAgent();
     this.otherCostsAgent = new OtherCostsAgent();
     this.reportAgent = new ReportAgent();
+    this.accommodationAgent = new AccommodationAgent();
   }
 
   async generateCostEstimate(
@@ -47,7 +49,14 @@ export class EstimationCoordinator {
         message: '正在分析个性化生活成本...'
       });
 
-      const livingCosts = await this.livingCostAgent.analyzeLivingCosts(userInput);
+      const livingCostsPartial = await this.livingCostAgent.analyzeLivingCosts(userInput);
+      const accommodationCosts = await this.accommodationAgent.queryAccommodationCosts(userInput);
+
+      // 合并生活成本和住宿成本数据
+      const livingCosts: LivingCosts = {
+        ...livingCostsPartial,
+        accommodation: accommodationCosts
+      } as LivingCosts;
 
       onProgress?.({
         step: 'living',
@@ -77,10 +86,16 @@ export class EstimationCoordinator {
         message: '正在生成个性化报告和建议...'
       });
 
+      // 合并生活成本和住宿成本数据
+      const combinedLivingCosts = {
+        ...livingCosts,
+        accommodation: accommodationCosts
+      };
+
       const report = await this.reportAgent.generateReport(
         userInput,
         tuition,
-        livingCosts,
+        combinedLivingCosts,
         otherCosts
       );
 
@@ -110,9 +125,10 @@ export class EstimationCoordinator {
       });
 
       // 并行执行所有查询任务
-      const [tuition, livingCosts, otherCosts] = await Promise.allSettled([
+      const [tuition, livingCostsPartial, accommodationCosts, otherCosts] = await Promise.allSettled([
         this.tuitionAgent.queryTuition(userInput),
         this.livingCostAgent.analyzeLivingCosts(userInput),
+        this.accommodationAgent.queryAccommodationCosts(userInput),
         this.otherCostsAgent.calculateOtherCosts(userInput)
       ]);
 
@@ -129,10 +145,16 @@ export class EstimationCoordinator {
           return this.getEmergencyTuitionData(userInput);
         })();
 
-      const livingData = livingCosts.status === 'fulfilled' ? livingCosts.value :
+      const livingDataPartial = livingCostsPartial.status === 'fulfilled' ? livingCostsPartial.value :
         (() => {
-          console.warn('Living costs query failed:', livingCosts.reason);
+          console.warn('Living costs query failed:', livingCostsPartial.reason);
           return this.getEmergencyLivingData(userInput);
+        })();
+
+      const accommodationData = accommodationCosts.status === 'fulfilled' ? accommodationCosts.value :
+        (() => {
+          console.warn('Accommodation costs query failed:', accommodationCosts.reason);
+          return this.getEmergencyAccommodationData(userInput);
         })();
 
       const otherData = otherCosts.status === 'fulfilled' ? otherCosts.value :
@@ -147,10 +169,16 @@ export class EstimationCoordinator {
         message: '正在生成个性化报告...'
       });
 
+      // 合并生活成本和住宿成本数据
+      const livingData: LivingCosts = {
+        ...livingDataPartial,
+        accommodation: accommodationData
+      } as LivingCosts;
+
       const report = await this.reportAgent.generateReport(
         userInput,
         tuitionData,
-        livingData,
+        combinedLivingCosts,
         otherData
       );
 
@@ -177,7 +205,7 @@ export class EstimationCoordinator {
 
     return {
       total: (emergencyFees as any)[country][level] * (level === 'undergraduate' ? 4 : 2),
-      currency: country === 'US' ? 'USD' as const : 'AUD' as const,
+      currency: country === 'US' ? 'USD' : 'AUD',
       source: '紧急后备数据',
       isEstimate: true,
       lastUpdated: new Date().toISOString(),
@@ -188,28 +216,60 @@ export class EstimationCoordinator {
 
   private getEmergencyLivingData(userInput: UserInput) {
     const { country } = userInput;
-    const currency = country === 'US' ? 'USD' as const : 'AUD' as const;
+    const currency = country === 'US' ? 'USD' : 'AUD';
     const baseAmount = country === 'US' ? 1380 : 1180;
 
     return {
+      total: {
+        amount: baseAmount,
+        range: { min: Math.round(baseAmount * 0.8), max: Math.round(baseAmount * 1.2) }
+      },
       accommodation: {
         monthlyRange: { min: 800, max: 1400 },
         currency,
         source: '紧急后备数据'
       },
-      total: {
-        amount: baseAmount,
-        range: { min: Math.round(baseAmount * 0.8), max: Math.round(baseAmount * 1.2) }
-      },
       currency,
-      period: 'monthly' as const,
+      period: 'monthly',
       sources: ['紧急后备数据']
+    };
+  }
+
+  private getEmergencyAccommodationData(userInput: UserInput) {
+    const { country, accommodation } = userInput;
+    
+    // 基础月度住宿费用范围
+    const baseRanges = {
+      US: {
+        dormitory: { min: 800, max: 1400 },
+        shared: { min: 1000, max: 1800 },
+        studio: { min: 1400, max: 2200 },
+        apartment: { min: 1600, max: 2500 }
+      },
+      AU: {
+        dormitory: { min: 700, max: 1200 },
+        shared: { min: 900, max: 1500 },
+        studio: { min: 1200, max: 1800 },
+        apartment: { min: 1400, max: 2200 }
+      }
+    };
+    
+    const countryRanges = baseRanges[country];
+    const range = countryRanges?.[accommodation] || countryRanges['shared'];
+    const currency = country === 'US' ? 'USD' : 'AUD';
+    
+    return {
+      monthlyRange: range,
+      currency,
+      source: '紧急后备数据',
+      confidence: 0.4,
+      reasoning: '基于通用市场数据估算'
     };
   }
 
   private getEmergencyOtherData(userInput: UserInput) {
     const { country } = userInput;
-    const currency = country === 'US' ? 'USD' as const : 'AUD' as const;
+    const currency = country === 'US' ? 'USD' : 'AUD';
 
     return {
       applicationFee: { amount: country === 'US' ? 85 : 100, source: '紧急后备数据' },
