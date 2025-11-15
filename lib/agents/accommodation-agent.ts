@@ -5,35 +5,35 @@ import { SEARCH_MODEL } from '../constants';
 // Define the expected output structure for LLM extraction
 const ACCOMMODATION_EXTRACTION_SCHEMA = `{
   "cityCentre1Beds": {
-    "average": 3409.72,
+    "average": 1200.00,
     "range": {
-      "min": 2800.00,
-      "max": 4800.00
+      "min": 1000.00,
+      "max": 1500.00
     }
   },
   "outsideCityCentre1Beds": {
-    "average": 2319.01,
+    "average": 900.00,
     "range": {
-      "min": 1900.20,
-      "max": 3000.00
+      "min": 700.00,
+      "max": 1200.00
     }
   },
   "cityCentre3Beds": {
-    "average": 6850.38,
+    "average": 2400.00,
     "range": {
-      "min": 5160.00,
-      "max": 10000.00
+      "min": 2000.00,
+      "max": 3000.00
     }
   },
   "outsideCityCentre3Beds": {
-    "average": 4225.58,
+    "average": 1800.00,
     "range": {
-      "min": 3000.00,
-      "max": 6000.00
+      "min": 1500.00,
+      "max": 2500.00
     }
   },
-  "currency": "AUD",
-  "source": "https://www.numbeo.com/cost-of-living/in/Sydney",
+  "currency": "USD",
+  "source": "https://www.numbeo.com/cost-of-living/in/CityName",
   "confidence": 0.9,
   "reasoning": "Based on analysis of official housing data for the specified city and accommodation type"
 }`;

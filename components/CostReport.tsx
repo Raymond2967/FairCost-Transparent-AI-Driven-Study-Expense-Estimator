@@ -207,7 +207,10 @@ User情况：
           
           <div className="flex flex-wrap justify-center gap-2">
             <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-              {userInput.country === 'US' ? '🇺🇸 美国' : '🇦🇺 澳大利亚'}
+              {userInput.country === 'US' ? '🇺🇸 美国' : 
+               userInput.country === 'UK' ? '🇬🇧 英国' : 
+               userInput.country === 'CA' ? '🇨🇦 加拿大' : 
+               userInput.country === 'DE' ? '🇩🇪 德国' : '🇦🇺 澳大利亚'}
             </span>
             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
               {userInput.level === 'undergraduate' ? '🎓 本科' : '🎓 硕士'}
@@ -216,7 +219,9 @@ User情况：
               {userInput.lifestyle === 'economy' ? '💰 经济型消费' : userInput.lifestyle === 'comfortable' ? '💰 舒适型消费' : '💰 标准型消费'}
             </span>
             <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
-              {userInput.accommodation === 'dormitory' ? '🏠 校内宿舍' : '🏠 校外合租'}
+              {userInput.accommodation === 'dormitory' ? '🏠 校内宿舍' : 
+               userInput.accommodation === 'shared' ? '🏠 校外合租' : 
+               userInput.accommodation === 'studio' ? '🏠 单人公寓' : '🏠 整租公寓'}
             </span>
           </div>
           
@@ -650,7 +655,10 @@ User情况：
                 </div>
                 <div>
                   <p className="text-gray-600">城市</p>
-                  <p>{userInput.city}, {userInput.country === 'US' ? '美国' : '澳大利亚'}</p>
+                  <p>{userInput.city}, {userInput.country === 'US' ? '美国' :
+                         userInput.country === 'UK' ? '英国' :
+                         userInput.country === 'CA' ? '加拿大' :
+                         userInput.country === 'DE' ? '德国' : '澳大利亚'}</p>
                 </div>
               </div>
             </div>

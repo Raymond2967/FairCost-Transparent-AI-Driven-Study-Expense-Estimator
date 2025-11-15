@@ -4,13 +4,13 @@ import { CITIES, SEARCH_MODEL } from '../constants';
 
 // Define the expected output structure for LLM extraction
 const NON_ACCOMMODATION_EXTRACTION_SCHEMA = `{
-  "monthlyCost": 1146.7,
+  "monthlyCost": 1200.0,
   "monthlyRange": {
-    "min": 1173,
-    "max": 1760
+    "min": 1000,
+    "max": 1500
   },
-  "currency": "AUD",
-  "source": "https://www.numbeo.com/cost-of-living/in/Sydney",
+  "currency": "USD",
+  "source": "https://www.numbeo.com/cost-of-living/in/CityName",
   "confidence": 0.9,
   "reasoning": "Based on Cost of Living data from numbeo.com"
 }`;
