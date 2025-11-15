@@ -54,7 +54,7 @@ export class AccommodationAgent {
       9. Return ONLY a JSON object with the exact structure specified below
       
       CRITICAL RULES:
-      - MUST provide a real, accessible URL as the source
+      - MUST provide a real, accessible URL as the source (not just the homepage, but the specific page with the data)
       - NEVER invent or estimate numbers without basis
       - If multiple sources exist, use the most recent and reliable one
       - For confidence: official sources with exact data = 0.8-1.0, reputable third-party sites = 0.6-0.8, limited data = 0.4-0.6
@@ -138,10 +138,15 @@ export class AccommodationAgent {
     const range = countryRanges?.[accommodation] || countryRanges['shared'];
     const currency = country === 'US' ? 'USD' : 'AUD';
     
+    // 为后备估算生成一个更具体的URL
+    const baseUrl = 'https://www.numbeo.com/cost-of-living/';
+    const cityParam = userInput.city ? `?city=${encodeURIComponent(userInput.city)}` : '';
+    const specificUrl = baseUrl + cityParam;
+    
     return {
       monthlyRange: range,
       currency,
-      source: 'https://www.numbeo.com/cost-of-living/',
+      source: specificUrl,
       confidence: 0.4,
       reasoning: 'Fallback estimate based on general market data for the region'
     };

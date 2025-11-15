@@ -17,6 +17,12 @@ export class ReportAgent {
       const programDuration = this.extractDurationInYears(tuition.programDuration);
       const totalCost = this.calculateTotalCost(tuition, livingCosts, otherCosts, programDuration);
 
+      // 计算生活费用明细
+      const nonAccommodationAnnual = livingCosts.total.amount * 12;
+      const accommodationMonthlyAvg = ((livingCosts.accommodation?.monthlyRange?.min || 0) + 
+                                     (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2;
+      const accommodationAnnual = accommodationMonthlyAvg * 12;
+
       // 生成个性化建议
       const recommendations = await this.generateRecommendations(userInput, {
         userInput,
@@ -30,9 +36,7 @@ export class ReportAgent {
           currency: tuition.currency,
           breakdown: {
             tuition: tuition.total,
-            living: (livingCosts.total.amount + 
-                    ((livingCosts.accommodation?.monthlyRange?.min || 0) + 
-                     (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2) * 12,
+            living: nonAccommodationAnnual + accommodationAnnual,
             other: (otherCosts.applicationFee?.amount || 0) +
                    (otherCosts.visaFee?.amount || 0) +
                    (otherCosts.healthInsurance?.amount || 0)
@@ -58,9 +62,7 @@ export class ReportAgent {
           currency: tuition.currency,
           breakdown: {
             tuition: tuition.total,
-            living: (livingCosts.total.amount + 
-                    ((livingCosts.accommodation?.monthlyRange?.min || 0) + 
-                     (livingCosts.accommodation?.monthlyRange?.max || 0)) / 2) * 12,
+            living: nonAccommodationAnnual + accommodationAnnual,
             other: (otherCosts.applicationFee?.amount || 0) +
                    (otherCosts.visaFee?.amount || 0) +
                    (otherCosts.healthInsurance?.amount || 0)
@@ -223,6 +225,11 @@ export class ReportAgent {
       });
 
       const response = await Promise.race([llmPromise, timeoutPromise]) as any;
+
+      // 检查响应格式是否正确
+      if (!response || !response.choices || response.choices.length === 0) {
+        throw new Error('Invalid response format from LLM');
+      }
 
       // Try to extract JSON array from response
       const recommendationsMatch = response.choices[0]?.message?.content?.match(/\[[\s\S]*\]/);

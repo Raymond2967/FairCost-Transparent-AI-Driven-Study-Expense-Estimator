@@ -22,12 +22,16 @@ export class LivingCostAgent {
 
       const currency = country === 'US' ? 'USD' : 'AUD';
 
+      // 基于单一数值生成一个合理的区间，上下浮动20%
+      const min = Math.round(costData.monthlyCost * 0.8);
+      const max = Math.round(costData.monthlyCost * 1.2);
+
       return {
         total: {
           amount: costData.monthlyCost,
           range: {
-            min: Math.round(costData.monthlyCost * 0.8),
-            max: Math.round(costData.monthlyCost * 1.2)
+            min,
+            max
           }
         },
         currency,
@@ -59,11 +63,11 @@ export class LivingCostAgent {
       Instructions:
       1. Search for the most recent "estimated monthly costs for a single person excluding rent" for ${targetCity} on numbeo.com
       2. Extract the exact cost value for the city
-      3. Return the cost value, currency, source URL, confidence level, and brief reasoning
+      3. Return the cost value, currency, source URL (specific page with the data, not just the homepage), confidence level, and brief reasoning
       4. Return ONLY a JSON object with the exact structure specified below
 
       CRITICAL RULES:
-      - MUST provide a real, accessible URL from numbeo.com as the source
+      - MUST provide a real, accessible URL from numbeo.com as the source (specific page with the data)
       - NEVER invent or estimate numbers without basis
       - If multiple values exist, use the most recent one
       - For confidence: direct data from numbeo = 0.8-0.9
@@ -79,7 +83,7 @@ export class LivingCostAgent {
         messages: [
           {
             role: 'system',
-            content: 'You are a precise cost of living analysis expert. Always respond with valid JSON in the exact format specified. Accuracy is critical - do not invent or estimate numbers. You must return the cost based on actual data from numbeo.com.'
+            content: 'You are a precise cost of living analysis expert. Always respond with valid JSON in the exact format specified. Accuracy is critical - do not invent or estimate numbers. You must return the cost based on actual data from numbeo.com. Provide the specific URL with the data, not just the homepage.'
           },
           {
             role: 'user',
@@ -107,10 +111,15 @@ export class LivingCostAgent {
     } catch (error) {
       console.log('Real-time non-accommodation data unavailable, using estimates');
       // Return fallback based on country
+      // 为后备估算生成一个更具体的URL
+      const baseUrl = 'https://www.numbeo.com/cost-of-living/';
+      const cityParam = targetCity ? `in/${encodeURIComponent(targetCity)}` : '';
+      const specificUrl = baseUrl + cityParam;
+      
       return {
         monthlyCost: country === 'US' ? 1500 : 1200,
         currency: country === 'US' ? 'USD' : 'AUD',
-        source: 'https://www.numbeo.com/cost-of-living/',
+        source: specificUrl,
         confidence: 0.6,
         reasoning: 'Fallback based on national average'
       };
@@ -130,6 +139,11 @@ export class LivingCostAgent {
 
     const currency = country === 'US' ? 'USD' : 'AUD';
 
+    // 为后备估算生成一个更具体的URL
+    const baseUrl = 'https://www.numbeo.com/cost-of-living/';
+    const cityParam = userInput.city ? `in/${encodeURIComponent(userInput.city)}` : '';
+    const specificUrl = baseUrl + cityParam;
+
     return {
       total: {
         amount: monthlyCost,
@@ -140,7 +154,7 @@ export class LivingCostAgent {
       },
       currency,
       period: 'monthly',
-      sources: ['https://www.numbeo.com/cost-of-living/'],
+      sources: [specificUrl],
       confidence: 0.3
     };
   }
