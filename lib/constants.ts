@@ -70,6 +70,35 @@ export const DE_UNIVERSITIES: UniversityData[] = [
   { name: "University of Stuttgart", country: "DE", city: "Stuttgart", programs: ["Engineering", "Business", "Architecture", "Computer Science"], website: "https://www.uni-stuttgart.de" }
 ];
 
+// 香港热门大学数据
+export const HK_UNIVERSITIES: UniversityData[] = [
+  { name: "University of Hong Kong", country: "HK", city: "Hong Kong", programs: ["Law", "Business", "Medicine", "Engineering"], website: "https://www.hku.hk" },
+  { name: "Hong Kong University of Science and Technology", country: "HK", city: "Hong Kong", programs: ["Engineering", "Business", "Science", "Computer Science"], website: "https://www.ust.hk" },
+  { name: "Chinese University of Hong Kong", country: "HK", city: "Hong Kong", programs: ["Medicine", "Business", "Law", "Science"], website: "https://www.cuhk.edu.hk" },
+  { name: "Hong Kong Polytechnic University", country: "HK", city: "Hong Kong", programs: ["Engineering", "Business", "Design", "Hotel Management"], website: "https://www.polyu.edu.hk" },
+  { name: "City University of Hong Kong", country: "HK", city: "Hong Kong", programs: ["Business", "Engineering", "Media", "Law"], website: "https://www.cityu.edu.hk" },
+  { name: "Hong Kong Baptist University", country: "HK", city: "Hong Kong", programs: ["Communication", "Business", "Science", "Arts"], website: "https://www.hkbu.edu.hk" },
+  { name: "Hong Kong Institute of Education", country: "HK", city: "Hong Kong", programs: ["Education", "Liberal Arts", "Science", "Social Sciences"], website: "https://www.eduhk.hk" },
+  { name: "Lingnan University", country: "HK", city: "Hong Kong", programs: ["Arts", "Business", "Social Sciences", "Humanities"], website: "https://www.ln.edu.hk" }
+];
+
+// 澳门热门大学数据
+export const MO_UNIVERSITIES: UniversityData[] = [
+  { name: "University of Macau", country: "MO", city: "Macau", programs: ["Business", "Law", "Science", "Engineering"], website: "https://www.um.edu.mo" },
+  { name: "Macau University of Science and Technology", country: "MO", city: "Macau", programs: ["Business", "Medicine", "Engineering", "Liberal Arts"], website: "https://www.must.edu.mo" },
+  { name: "City University of Macau", country: "MO", city: "Macau", programs: ["Business", "Law", "International Relations", "Languages"], website: "https://www.cityu.edu.mo" }
+];
+
+// 新加坡热门大学数据
+export const SG_UNIVERSITIES: UniversityData[] = [
+  { name: "National University of Singapore", country: "SG", city: "Singapore", programs: ["Business", "Engineering", "Medicine", "Law"], website: "https://www.nus.edu.sg" },
+  { name: "Nanyang Technological University", country: "SG", city: "Singapore", programs: ["Engineering", "Business", "Science", "Computer Science"], website: "https://www.ntu.edu.sg" },
+  { name: "Singapore Management University", country: "SG", city: "Singapore", programs: ["Business", "Law", "Economics", "Accounting"], website: "https://www.smu.edu.sg" },
+  { name: "Singapore University of Technology and Design", country: "SG", city: "Singapore", programs: ["Engineering", "Architecture", "Design"], website: "https://www.sutd.edu.sg" },
+  { name: "Singapore Institute of Technology", country: "SG", city: "Singapore", programs: ["Engineering", "Business", "Health Sciences", "Design"], website: "https://www.singaporetech.edu.sg" },
+  { name: "Singapore University of Social Sciences", country: "SG", city: "Singapore", programs: ["Business", "Humanities", "Social Sciences", "Education"], website: "https://www.suss.edu.sg" }
+];
+
 // 城市数据
 export const CITIES: CityData[] = [
   // 美国城市
@@ -118,8 +147,29 @@ export const CITIES: CityData[] = [
   { name: "Hamburg", country: "DE", state: "Hamburg", avgCostOfLiving: 1700, currency: "EUR" },
   { name: "Cologne", country: "DE", state: "North Rhine-Westphalia", avgCostOfLiving: 1500, currency: "EUR" },
   { name: "Aachen", country: "DE", state: "North Rhine-Westphalia", avgCostOfLiving: 1300, currency: "EUR" },
-  { name: "Stuttgart", country: "DE", state: "Baden-Württemberg", avgCostOfLiving: 1600, currency: "EUR" }
+  { name: "Stuttgart", country: "DE", state: "Baden-Württemberg", avgCostOfLiving: 1600, currency: "EUR" },
+  
+  // 香港城市
+  { name: "Hong Kong", country: "HK", state: "Hong Kong", avgCostOfLiving: 2500, currency: "HKD" },
+  
+  // 澳门城市
+  { name: "Macau", country: "MO", state: "Macau", avgCostOfLiving: 2200, currency: "MOP" },
+  
+  // 新加坡城市
+  { name: "Singapore", country: "SG", state: "Singapore", avgCostOfLiving: 2200, currency: "SGD" }
 ];
+
+// 国家到货币代码的映射表
+export const COUNTRY_CURRENCY_MAP: Record<string, string> = {
+  US: 'USD',
+  AU: 'AUD',
+  UK: 'GBP',
+  CA: 'CAD',
+  DE: 'EUR',
+  HK: 'HKD',
+  MO: 'MOP',
+  SG: 'SGD'
+};
 
 // 生活方式系数
 export const LIFESTYLE_MULTIPLIERS = {
@@ -159,6 +209,24 @@ export const ACCOMMODATION_BASE_COSTS = {
     shared: 500,
     studio: 700,
     apartment: 900
+  },
+  HK: {
+    dormitory: 8000,
+    shared: 10000,
+    studio: 14000,
+    apartment: 18000
+  },
+  MO: {
+    dormitory: 6000,
+    shared: 8000,
+    studio: 12000,
+    apartment: 16000
+  },
+  SG: {
+    dormitory: 1000,
+    shared: 1500,
+    studio: 2000,
+    apartment: 3000
   }
 } as const;
 
@@ -183,6 +251,18 @@ export const VISA_FEES = {
   DE: {
     national: 75, // 国家签证
     source: "https://www.auswaertiges-amt.de/en/einreiseundaufenthalt/visaformular/-/2292840"
+  },
+  HK: {
+    student: 460, // 香港学生签证费用（港币）
+    source: "https://www.immd.gov.hk"
+  },
+  MO: {
+    student: 400, // 澳门学生签证费用（澳门元）
+    source: "https://www.dsarm.gov.mo"
+  },
+  SG: {
+    student: 300, // 新加坡学生签证费用（新币）
+    source: "https://www.ica.gov.sg"
   }
 } as const;
 

@@ -1,7 +1,7 @@
 import { openRouterClient } from '../openrouter';
 import { safeLLMClient } from '../safe-llm-client';
 import { UserInput, OtherCosts } from '@/types';
-import { VISA_FEES, US_UNIVERSITIES, AU_UNIVERSITIES, UK_UNIVERSITIES, CA_UNIVERSITIES, DE_UNIVERSITIES, SEARCH_MODEL } from '../constants';
+import { VISA_FEES, US_UNIVERSITIES, AU_UNIVERSITIES, UK_UNIVERSITIES, CA_UNIVERSITIES, DE_UNIVERSITIES, HK_UNIVERSITIES, MO_UNIVERSITIES, SG_UNIVERSITIES, SEARCH_MODEL } from '../constants';
 
 export class OtherCostsAgent {
   async calculateOtherCosts(userInput: UserInput): Promise<OtherCosts> {
@@ -15,7 +15,7 @@ export class OtherCostsAgent {
         this.getHealthInsurance(country, university)
       ]);
 
-      const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD';
+      const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : country === 'HK' ? 'HKD' : country === 'MO' ? 'MOP' : 'SGD';
 
       return {
         applicationFee,
@@ -37,7 +37,7 @@ export class OtherCostsAgent {
     
     try {
       // 获取大学官网信息
-      const universityData = [...US_UNIVERSITIES, ...AU_UNIVERSITIES, ...UK_UNIVERSITIES, ...CA_UNIVERSITIES, ...DE_UNIVERSITIES].find(
+      const universityData = [...US_UNIVERSITIES, ...AU_UNIVERSITIES, ...UK_UNIVERSITIES, ...CA_UNIVERSITIES, ...DE_UNIVERSITIES, ...HK_UNIVERSITIES, ...MO_UNIVERSITIES, ...SG_UNIVERSITIES].find(
         uni => uni.name === university
       );
 
@@ -52,7 +52,7 @@ export class OtherCostsAgent {
       const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
 
       const fallbackData = {
-        application_fee: country === 'US' ? 85 : country === 'UK' ? 50 : country === 'CA' ? 100 : country === 'DE' ? 75 : 100,
+        application_fee: country === 'US' ? 85 : country === 'UK' ? 50 : country === 'CA' ? 100 : country === 'DE' ? 75 : country === 'HK' ? 460 : country === 'MO' ? 400 : 300,
         source_url: universityData.website,
         confidence: 0.5
       };
@@ -86,7 +86,10 @@ export class OtherCostsAgent {
         'AU': { 'undergraduate': 100, 'graduate': 125 },
         'UK': { 'undergraduate': 50, 'graduate': 75 },
         'CA': { 'undergraduate': 100, 'graduate': 125 },
-        'DE': { 'undergraduate': 75, 'graduate': 100 }
+        'DE': { 'undergraduate': 75, 'graduate': 100 },
+        'HK': { 'undergraduate': 460, 'graduate': 460 },
+        'MO': { 'undergraduate': 400, 'graduate': 400 },
+        'SG': { 'undergraduate': 300, 'graduate': 300 }
       };
 
       return {
@@ -104,7 +107,10 @@ export class OtherCostsAgent {
         'AU': { 'undergraduate': 80, 'graduate': 100 },
         'UK': { 'undergraduate': 50, 'graduate': 75 },
         'CA': { 'undergraduate': 90, 'graduate': 110 },
-        'DE': { 'undergraduate': 60, 'graduate': 85 }
+        'DE': { 'undergraduate': 60, 'graduate': 85 },
+        'HK': { 'undergraduate': 400, 'graduate': 400 },
+        'MO': { 'undergraduate': 350, 'graduate': 350 },
+        'SG': { 'undergraduate': 250, 'graduate': 250 }
       };
 
       return {
@@ -115,7 +121,7 @@ export class OtherCostsAgent {
     }
   }
 
-  private async getVisaFee(country: 'US' | 'AU' | 'UK' | 'CA' | 'DE'): Promise<{ amount: number; source: string; confidence?: number }> {
+  private async getVisaFee(country: 'US' | 'AU' | 'UK' | 'CA' | 'DE' | 'HK' | 'MO' | 'SG'): Promise<{ amount: number; source: string; confidence?: number }> {
     try {
       if (country === 'US') {
         return {
@@ -141,6 +147,24 @@ export class OtherCostsAgent {
           source: VISA_FEES.DE.source,
           confidence: 0.9 // 官方费用，置信度高
         };
+      } else if (country === 'HK') {
+        return {
+          amount: VISA_FEES.HK.study,
+          source: VISA_FEES.HK.source,
+          confidence: 0.9 // 官方费用，置信度高
+        };
+      } else if (country === 'MO') {
+        return {
+          amount: VISA_FEES.MO.study,
+          source: VISA_FEES.MO.source,
+          confidence: 0.9 // 官方费用，置信度高
+        };
+      } else if (country === 'SG') {
+        return {
+          amount: VISA_FEES.SG.student,
+          source: VISA_FEES.SG.source,
+          confidence: 0.9 // 官方费用，置信度高
+        };
       } else {
         return {
           amount: VISA_FEES.AU.student,
@@ -157,7 +181,10 @@ export class OtherCostsAgent {
         'AU': { amount: 650, source: '澳大利亚学生签证标准费用', confidence: 0.8 },
         'UK': { amount: 475, source: '英国Tier 4学生签证标准费用', confidence: 0.8 },
         'CA': { amount: 150, source: '加拿大学习许可标准费用', confidence: 0.8 },
-        'DE': { amount: 75, source: '德国国家签证标准费用', confidence: 0.8 }
+        'DE': { amount: 75, source: '德国国家签证标准费用', confidence: 0.8 },
+        'HK': { amount: 460, source: '香港学生签证标准费用', confidence: 0.8 },
+        'MO': { amount: 400, source: '澳门学生签证标准费用', confidence: 0.8 },
+        'SG': { amount: 300, source: '新加坡学生签证标准费用', confidence: 0.8 }
       };
 
       return emergencyFees[country];
@@ -165,7 +192,7 @@ export class OtherCostsAgent {
   }
 
   private async getHealthInsurance(
-    country: 'US' | 'AU' | 'UK' | 'CA' | 'DE',
+    country: 'US' | 'AU' | 'UK' | 'CA' | 'DE' | 'HK' | 'MO' | 'SG',
     university: string
   ): Promise<{ amount: number; source: string; confidence?: number } | undefined> {
     try {
@@ -174,13 +201,15 @@ export class OtherCostsAgent {
                           country === 'UK' ? 'health insurance requirement' : 
                           country === 'CA' ? 'health insurance requirement' : 
                           country === 'DE' ? 'health insurance requirement' : 
-                          'OSHC requirement'} international students ${new Date().getFullYear()} official`;
+                          country === 'HK' ? 'health insurance requirement' :
+                          country === 'MO' ? 'health insurance requirement' :
+                          'health insurance requirement'} international students ${new Date().getFullYear()} official`;
 
       // 使用gpt-4o-search-preview模型进行搜索
       const searchResults = await safeLLMClient.safeSearch(searchQuery, '数据暂时不可用', SEARCH_MODEL);
 
       const fallbackData = {
-        insurance_fee: country === 'US' ? 2500 : country === 'UK' ? 3000 : country === 'CA' ? 2000 : country === 'DE' ? 1000 : 600,
+        insurance_fee: country === 'US' ? 2500 : country === 'UK' ? 3000 : country === 'CA' ? 2000 : country === 'DE' ? 1000 : country === 'HK' ? 2000 : country === 'MO' ? 1500 : 800,
         source_url: '',
         confidence: 0.5
       };
@@ -211,7 +240,7 @@ export class OtherCostsAgent {
 
   private getFallbackOtherCosts(userInput: UserInput): OtherCosts {
     const { country } = userInput;
-    const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD';
+    const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : country === 'HK' ? 'HKD' : country === 'MO' ? 'MOP' : 'SGD';
 
     // 注意：这里不包含健康保险，因为如果没有找到可靠数据，就不应该显示
     const defaultFees = {
@@ -219,12 +248,15 @@ export class OtherCostsAgent {
       'AU': { application: 100, visa: 650 },
       'UK': { application: 50, visa: 475 },
       'CA': { application: 100, visa: 150 },
-      'DE': { application: 75, visa: 75 }
+      'DE': { application: 75, visa: 75 },
+      'HK': { application: 460, visa: 460 },
+      'MO': { application: 400, visa: 400 },
+      'SG': { application: 300, visa: 300 }
     };
 
     return {
-      applicationFee: { amount: defaultFees[country].application, source: '紧急后备数据', confidence: 0.3 },
-      visaFee: { amount: defaultFees[country].visa, source: '官方标准费用', confidence: 0.9 },
+      applicationFee: { amount: (defaultFees as any)[country].application, source: '紧急后备数据', confidence: 0.3 },
+      visaFee: { amount: (defaultFees as any)[country].visa, source: '官方标准费用', confidence: 0.9 },
       currency
     };
   }
