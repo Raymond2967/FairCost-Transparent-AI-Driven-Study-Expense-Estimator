@@ -5,10 +5,21 @@
 ## 功能特点
 
 - 🎯 **个性化估算**：根据用户的生活方式偏好提供定制化费用估算
-- 🏛️ **官方数据源**：从大学官网和政府网站获取费用信息
+- 🏛️ **官方数据源**：从大学官网和政府网站获取最新、最准确的费用信息
 - 📊 **可视化报告**：提供直观的图表和详细的费用分解
 - 💡 **省钱建议**：基于用户选择的个性化省钱建议
 - 🔗 **数据透明**：所有估算都提供可验证的数据来源链接
+
+## 支持的国家和地区
+
+- 🇺🇸 **美国**：多所知名大学，涵盖主要城市
+- 🇦🇺 **澳大利亚**：多所知名大学，涵盖主要城市
+- 🇬🇧 **英国**：多所知名大学，涵盖主要城市
+- 🇨🇦 **加拿大**：多所知名大学，涵盖主要城市
+- 🇩🇪 **德国**：多所知名大学，涵盖主要城市
+- 🇭🇰 **香港**：多所知名大学
+- 🇲🇴 **澳门**：多所知名大学
+- 🇸🇬 **新加坡**：多所知名大学
 
 ## 技术架构
 
@@ -40,6 +51,10 @@
 ### 安装步骤
 
 1. **克隆项目**
+   ```bash
+   git clone <repository-url>
+   cd cost_copy_v2
+   ```
 
 2. **安装依赖**
    ```bash
@@ -48,9 +63,14 @@
 
 3. **配置环境变量**
 
-   创建 `.env.local` 文件：
+   复制 [.env.example](file:///d:/Project/cost_copy_v2/.env.example) 文件并重命名为 [.env.local](file:///d:/Project/cost_copy_v2/.env.local)：
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   然后在 [.env.local](file:///d:/Project/cost_copy_v2/.env.local) 文件中填入您的 OpenRouter API 密钥：
    ```env
-   OPENROUTER_API_KEY=your_openrouter_api_key
+   OPENROUTER_API_KEY=your_actual_openrouter_api_key
    ```
 
 4. **启动开发服务器**
