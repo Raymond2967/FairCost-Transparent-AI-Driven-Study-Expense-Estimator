@@ -24,7 +24,7 @@ export class LivingCostAgent {
       // 获取目标城市的单人生活成本（不含房租）
       const costData = await this.getCostOfLivingData(city!, country);
 
-      const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : country === 'HK' ? 'HKD' : country === 'MO' ? 'MOP' : 'SGD';
+      const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD';
 
       // 基于单一数值生成一个合理的区间，上下浮动20%
       const min = Math.round(costData.monthlyCost * 0.8);
@@ -51,10 +51,10 @@ export class LivingCostAgent {
     }
   }
 
-  private async getCostOfLivingData(targetCity: string, country: 'US' | 'AU' | 'UK' | 'CA' | 'DE' | 'HK' | 'MO' | 'SG'): Promise<{ 
+  private async getCostOfLivingData(targetCity: string, country: 'US' | 'AU' | 'UK' | 'CA' | 'DE'): Promise<{ 
     monthlyCost: number;
     monthlyRange: { min: number; max: number };
-    currency: 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR' | 'HKD' | 'MOP' | 'SGD'; 
+    currency: 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR'; 
     source: string; 
     confidence?: number; 
     reasoning?: string 
@@ -77,7 +77,7 @@ export class LivingCostAgent {
       - NEVER invent or estimate numbers without basis
       - If multiple values exist, use the most recent one
       - For confidence: direct data from numbeo = 0.8-0.9
-      - ALWAYS return the result in the user's target country currency (USD for US, AUD for AU, GBP for UK, CAD for CA, EUR for DE, HKD for HK, MOP for MO, SGD for SG)
+      - ALWAYS return the result in the user's target country currency (USD for US, AUD for AU, GBP for UK, CAD for CA, EUR for DE)
       - ALWAYS provide both monthlyCost (single value) and monthlyRange (min-max range)
       - Do NOT round numbers, use exact values from the website
 
@@ -114,7 +114,7 @@ export class LivingCostAgent {
           min: Number(extractedData.monthlyRange.min),
           max: Number(extractedData.monthlyRange.max)
         },
-        currency: extractedData.currency as 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR' | 'HKD' | 'MOP' | 'SGD',
+        currency: extractedData.currency as 'USD' | 'AUD' | 'GBP' | 'CAD' | 'EUR',
         source: extractedData.source,
         confidence: extractedData.confidence,
         reasoning: extractedData.reasoning
@@ -129,14 +129,14 @@ export class LivingCostAgent {
       const specificUrl = baseUrl + cityParam;
       
       // Return fallback with estimated range
-      const monthlyCost = country === 'US' ? 1500 : country === 'UK' ? 2000 : country === 'CA' ? 1800 : country === 'DE' ? 1200 : country === 'HK' ? 1200 : country === 'MO' ? 1100 : 1100;
+      const monthlyCost = country === 'US' ? 1500 : country === 'UK' ? 2000 : country === 'CA' ? 1800 : country === 'DE' ? 1200 : 1200;
       return {
         monthlyCost: monthlyCost,
         monthlyRange: {
           min: Math.round(monthlyCost * 0.8),
           max: Math.round(monthlyCost * 1.2)
         },
-        currency: country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : country === 'HK' ? 'HKD' : country === 'MO' ? 'MOP' : 'SGD',
+        currency: country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD',
         source: specificUrl,
         confidence: 0.6,
         reasoning: 'Fallback based on national average'
@@ -148,14 +148,14 @@ export class LivingCostAgent {
     const { country, lifestyle } = userInput;
     
     // 默认月度生活成本
-    const defaultMonthlyCost = country === 'US' ? 1500 : country === 'UK' ? 2000 : country === 'CA' ? 1800 : country === 'DE' ? 1200 : country === 'HK' ? 1200 : country === 'MO' ? 1100 : 1100;
+    const defaultMonthlyCost = country === 'US' ? 1500 : country === 'UK' ? 2000 : country === 'CA' ? 1800 : country === 'DE' ? 1200 : 1200;
     
     const multiplier = lifestyle === 'economy' ? 0.8 : lifestyle === 'comfortable' ? 1.25 : 1.0;
 
     // 应用生活方式乘数
     const monthlyCost = Math.round(defaultMonthlyCost * multiplier);
 
-    const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : country === 'HK' ? 'HKD' : country === 'MO' ? 'MOP' : 'SGD';
+    const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : 'AUD';
 
     // 为后备估算生成一个更具体的URL
     const baseUrl = 'https://www.numbeo.com/cost-of-living/';

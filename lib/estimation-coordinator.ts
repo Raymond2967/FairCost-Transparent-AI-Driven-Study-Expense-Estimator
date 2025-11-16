@@ -200,32 +200,12 @@ export class EstimationCoordinator {
     const { country, level } = userInput;
     const emergencyFees = {
       'US': { 'undergraduate': 45000, 'graduate': 55000 },
-      'AU': { 'undergraduate': 40000, 'graduate': 45000 },
-      'UK': { 'undergraduate': 25000, 'graduate': 30000 },
-      'CA': { 'undergraduate': 20000, 'graduate': 15000 },
-      'DE': { 'undergraduate': 2000, 'graduate': 2000 },
-      'HK': { 'undergraduate': 150000, 'graduate': 120000 },
-      'MO': { 'undergraduate': 120000, 'graduate': 100000 },
-      'SG': { 'undergraduate': 100000, 'graduate': 80000 }
+      'AU': { 'undergraduate': 40000, 'graduate': 45000 }
     };
 
-    const countryFees = (emergencyFees as any)[country];
-    if (!countryFees) {
-      // 默认使用美国数据
-      return {
-        total: 50000 * (level === 'undergraduate' ? 4 : 2),
-        currency: 'USD',
-        source: '紧急后备数据',
-        isEstimate: true,
-        lastUpdated: new Date().toISOString(),
-        confidence: 0.3,
-        programDuration: level === 'undergraduate' ? 4 : 2
-      };
-    }
-
     return {
-      total: countryFees[level] * (level === 'undergraduate' ? 4 : 2),
-      currency: country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : country === 'HK' ? 'HKD' : country === 'MO' ? 'MOP' : 'SGD',
+      total: (emergencyFees as any)[country][level] * (level === 'undergraduate' ? 4 : 2),
+      currency: country === 'US' ? 'USD' : 'AUD',
       source: '紧急后备数据',
       isEstimate: true,
       lastUpdated: new Date().toISOString(),
@@ -236,8 +216,8 @@ export class EstimationCoordinator {
 
   private getEmergencyLivingData(userInput: UserInput) {
     const { country } = userInput;
-    const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : country === 'AU' ? 'AUD' : country === 'HK' ? 'HKD' : country === 'MO' ? 'MOP' : 'SGD';
-    const baseAmount = country === 'US' ? 1380 : country === 'UK' ? 1200 : country === 'CA' ? 1100 : country === 'DE' ? 900 : country === 'AU' ? 1180 : country === 'HK' ? 1200 : country === 'MO' ? 1100 : 1100;
+    const currency = country === 'US' ? 'USD' : 'AUD';
+    const baseAmount = country === 'US' ? 1380 : 1180;
 
     return {
       total: {
@@ -271,48 +251,12 @@ export class EstimationCoordinator {
         shared: { min: 900, max: 1500 },
         studio: { min: 1200, max: 1800 },
         apartment: { min: 1400, max: 2200 }
-      },
-      UK: {
-        dormitory: { min: 700, max: 1200 },
-        shared: { min: 800, max: 1400 },
-        studio: { min: 1000, max: 1600 },
-        apartment: { min: 1200, max: 2000 }
-      },
-      CA: {
-        dormitory: { min: 750, max: 1300 },
-        shared: { min: 900, max: 1500 },
-        studio: { min: 1100, max: 1700 },
-        apartment: { min: 1300, max: 2100 }
-      },
-      DE: {
-        dormitory: { min: 400, max: 700 },
-        shared: { min: 500, max: 800 },
-        studio: { min: 600, max: 900 },
-        apartment: { min: 700, max: 1000 }
-      },
-      HK: {
-        dormitory: { min: 6000, max: 10000 },
-        shared: { min: 8000, max: 12000 },
-        studio: { min: 10000, max: 15000 },
-        apartment: { min: 12000, max: 20000 }
-      },
-      MO: {
-        dormitory: { min: 4000, max: 8000 },
-        shared: { min: 6000, max: 10000 },
-        studio: { min: 8000, max: 12000 },
-        apartment: { min: 10000, max: 16000 }
-      },
-      SG: {
-        dormitory: { min: 800, max: 1200 },
-        shared: { min: 1000, max: 1500 },
-        studio: { min: 1200, max: 1800 },
-        apartment: { min: 1500, max: 2500 }
       }
     };
     
-    const countryRanges = (baseRanges as any)[country];
-    const range = countryRanges?.[accommodation] || (countryRanges ? countryRanges['shared'] : { min: 800, max: 1400 });
-    const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : country === 'AU' ? 'AUD' : country === 'HK' ? 'HKD' : country === 'MO' ? 'MOP' : 'SGD';
+    const countryRanges = baseRanges[country];
+    const range = countryRanges?.[accommodation] || countryRanges['shared'];
+    const currency = country === 'US' ? 'USD' : 'AUD';
     
     return {
       monthlyRange: range,
@@ -325,24 +269,12 @@ export class EstimationCoordinator {
 
   private getEmergencyOtherData(userInput: UserInput) {
     const { country } = userInput;
-    const currency = country === 'US' ? 'USD' : country === 'UK' ? 'GBP' : country === 'CA' ? 'CAD' : country === 'DE' ? 'EUR' : country === 'AU' ? 'AUD' : country === 'HK' ? 'HKD' : country === 'MO' ? 'MOP' : 'SGD';
-
-    // 签证费用数据
-    const visaFees = {
-      US: 350,
-      AU: 650,
-      UK: 475,
-      CA: 150,
-      DE: 75,
-      HK: 460,
-      MO: 400,
-      SG: 300
-    };
+    const currency = country === 'US' ? 'USD' : 'AUD';
 
     return {
       applicationFee: { amount: country === 'US' ? 85 : 100, source: '紧急后备数据' },
-      visaFee: { amount: (visaFees as any)[country] || 350, source: '官方标准费用' },
-      healthInsurance: { amount: country === 'US' ? 2500 : country === 'UK' ? 300 : country === 'CA' ? 600 : country === 'DE' ? 800 : country === 'AU' ? 600 : country === 'HK' ? 2000 : country === 'MO' ? 1500 : 800, source: '紧急后备数据' },
+      visaFee: { amount: country === 'US' ? 350 : 650, source: '官方标准费用' },
+      healthInsurance: { amount: country === 'US' ? 2500 : 600, source: '紧急后备数据' },
       currency
     };
   }
