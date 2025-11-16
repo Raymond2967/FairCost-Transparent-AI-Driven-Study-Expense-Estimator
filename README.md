@@ -1,6 +1,6 @@
-# FairCost - 透明AI驱动的留学费用估算工具
+# FairCost - 留学费用估算工具
 
-一个基于LLM的智能留学费用估算工具，为申请海外本科及硕士的留学生提供最可信、最个性化的留学费用透明度工具。
+一个基于人工智能技术的留学费用估算工具，帮助计划申请海外本科或硕士的学生了解目标国家的学习和生活成本。
 
 ## 功能特点
 
@@ -10,16 +10,6 @@
 - 💡 **省钱建议**：基于用户选择的个性化省钱建议
 - 🔗 **数据透明**：所有估算都提供可验证的数据来源链接
 
-## 支持的国家和地区
-
-- 🇺🇸 **美国**：多所知名大学，涵盖主要城市
-- 🇦🇺 **澳大利亚**：多所知名大学，涵盖主要城市
-- 🇬🇧 **英国**：多所知名大学，涵盖主要城市
-- 🇨🇦 **加拿大**：多所知名大学，涵盖主要城市
-- 🇩🇪 **德国**：多所知名大学，涵盖主要城市
-- 🇭🇰 **香港**：多所知名大学
-- 🇲🇴 **澳门**：多所知名大学
-- 🇸🇬 **新加坡**：多所知名大学
 
 ## 技术架构
 
@@ -53,7 +43,7 @@
 1. **克隆项目**
    ```bash
    git clone <repository-url>
-   cd cost_copy_v2
+   cd <project-name>
    ```
 
 2. **安装依赖**
@@ -63,12 +53,12 @@
 
 3. **配置环境变量**
 
-   复制 [.env.example](file:///d:/Project/cost_copy_v2/.env.example) 文件并重命名为 [.env.local](file:///d:/Project/cost_copy_v2/.env.local)：
+   复制 [.env.example]文件并重命名为 [.env.local]：
    ```bash
    cp .env.example .env.local
    ```
    
-   然后在 [.env.local](file:///d:/Project/cost_copy_v2/.env.local) 文件中填入您的 OpenRouter API 密钥：
+   然后在 [.env.local]文件中填入您的 OpenRouter API 密钥：
    ```env
    OPENROUTER_API_KEY=your_actual_openrouter_api_key
    ```
